@@ -1,0 +1,26 @@
+<strings>
+    <string id="AppName">Soccer</string>
+
+    <string id="MenuPauseTitle">Pause</string>
+    <string id="MenuResume">Resume</string>
+    <string id="MenuSave">Save</string>
+    <string id="MenuDiscard">Discard</string>
+    <string id="MenuSettingsTitle">Settings</string>
+    <string id="IndoorMode">Indoor Mode</string>
+    <string id="IndoorEnabled">Indoor (No GPS)</string>
+    <string id="IndoorDisabled">Outdoor (GPS on)</string>
+    <string id="SessionNameIndoor">Soccer (Indoor)</string>
+    <string id="SessionNameOutdoor">Soccer (Outdoor)</string>
+    <string id="SummaryTitle">RESULT</string>
+    <string id="ViewScore">SCORE</string>
+    <string id="ViewGoalA">GOAL A</string>
+    <string id="ViewGoalB">GOAL B</string>
+    <string id="ViewDistance">DISTANCE</string>
+    <string id="ViewHIT">HIT</string>
+    <string id="ViewTimer">TIMER</string>
+    <string id="ScoreALabel">Score Team A</string>
+    <string id="ScoreBLabel">Score Team B</string>
+    <string id="ScoreUnit">Goals</string>
+    <string id="HiMinLabel">HI-Minutes (Zone 5)</string>
+    <string id="HiMinUnit">Min</string>
+</strings>

@@ -1,0 +1,27 @@
+# Garmin Connect IQ / Monkey C development
+bin/
+build/
+dist/
+
+# IDE workspace files
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.cproject
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Connect IQ specific
+*.qcl
+*.qsp
+*.qwi

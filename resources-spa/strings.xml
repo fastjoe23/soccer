@@ -1,0 +1,27 @@
+<resources>
+    <strings>
+        <string id="AppName">Futbol</string>
+        <string id="MenuPauseTitle">Pausa</string>
+        <string id="MenuResume">Reanudar</string>
+        <string id="MenuSave">Guardar</string>
+        <string id="MenuDiscard">Descartar</string>
+        <string id="MenuSettingsTitle">Ajustes</string>
+        <string id="IndoorMode">Modo Interior</string>
+        <string id="IndoorEnabled">Interior (Sin GPS)</string>
+        <string id="IndoorDisabled">Exterior (Con GPS)</string>
+        <string id="SessionNameIndoor">Futbol (Interior)</string>
+        <string id="SessionNameOutdoor">Futbol (Exterior)</string>
+        <string id="SummaryTitle">RESULTADO</string>
+        <string id="ViewScore">MARCADOR</string>
+        <string id="ViewGoalA">GOL A</string>
+        <string id="ViewGoalB">GOL B</string>
+        <string id="ViewDistance">DISTANCIA</string>
+        <string id="ViewHIT">HIT</string>
+        <string id="ViewTimer">TIEMPO</string>
+        <string id="ScoreALabel">Goles Equipo A</string>
+        <string id="ScoreBLabel">Goles Equipo B</string>
+        <string id="ScoreUnit">Goles</string>
+        <string id="HiMinLabel">Minutos HI (Zona 5)</string>
+        <string id="HiMinUnit">Min</string>
+    </strings>
+</resources>
