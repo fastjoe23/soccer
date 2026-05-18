@@ -16,7 +16,7 @@ A standalone Garmin Wearable Application ("Device App") designed specifically fo
 ## Architecture (Model-View-Controller)
 
 The application strictly implements the **MVC (Model-View-Controller)** pattern to decouple the core gameplay state, the rendering pipeline, and the physical hardware inputs:
-
+````
 [ SoccerApp ] (Application Entry Point)
         │
         ▼
@@ -25,6 +25,7 @@ The application strictly implements the **MVC (Model-View-Controller)** pattern 
         ├──────────────┐ │
         ▼              ▼ │
  [ SoccerView ]   [ SoccerDelegate ] (Interceptors for Physical Keys)
+ ````
 
 ### 1. The Model (`SoccerModel.mc`)
 Acts as the single source of truth. It manages the runtime state (scores, active page, metrics), subscribes to system sensor streams, and manages the lifecycle of the `ActivityRecording.Session`.
