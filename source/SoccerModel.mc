@@ -261,67 +261,67 @@ class SoccerModel {
             } else {
                 calories = 0;
             }
-            // High Intensity Zeit berechnen (Zeit über der Grenze von Zone 4)
-            if(info.timerTime != null) {
-                // 1. Delta-Zeit seit dem letzten Aufruf berechnen
-                var currentTimerTime = info.timerTime;
-                var deltaMs = currentTimerTime - _lastHiMinTimerTime;
-                
-                // Schutz gegen negative Werte (z.B. beim Zurücksetzen der Session)
-                if (deltaMs > 0 && deltaMs < 5000) { 
-                    
-                // 2. Sind wir in der roten oder orangenen Zone?
-                if (currentHR > 0 && hrZones != null && currentHR >= hrZones[3]) {
-                    
-                    // Exakte Millisekunden auf das High-Intensity-Konto buchen
-                    hiTimeAccumulatorMs += deltaMs;
-                    
-                    // 3. Haben wir eine neue volle Minute erreicht?
-                    var calculatedMinutes = hiTimeAccumulatorMs / 60000; 
-                    
-                    if (calculatedMinutes > hiMinutes) {
-                        hiMinutes = calculatedMinutes; // Wert aktualisieren
-                        
-                        // FIT-File updaten
-                        if (fieldHiMinutes != null) {
-                            fieldHiMinutes.setData(hiMinutes);
-                        }
-                    }
-                }
-            }
-            // --- Schrittfrequenz und Sprint-Logik ---
-            if (info.currentCadence != null) {
-                currentCadence = info.currentCadence;
-            } else {
-                currentCadence = 0;
-            }
 
-            if (currentCadence >= SPRINT_CADENCE_THRESHOLD_HIGH) {
-                // Frequenz ist hoch, Sekunden hochzählen
-                _sprintDurationSeconds++;
-
-                // Zeitfenster erreicht?
-                if (_sprintDurationSeconds >= MIN_SPRINT_DURATION_SECS) {
-                    if (!_isCurrentlySprint) {
-                        _isCurrentlySprint = true;
-                        sprintCount++; // Sprint zählen!
-                        
-                        // Direkt in die Session schreiben
-                        if (fieldSprintCount != null) {
-                            fieldSprintCount.setData(sprintCount);
-                        }
-                    }
-                }
-            } else if (currentCadence < SPRINT_CADENCE_THRESHOLD_LOW) {
-                // Reset: Der Spieler ist wieder im Trab oder steht
-                _isCurrentlySprint = false;
-                _sprintDurationSeconds = 0; 
-            }
+            // Werte für die HIT und Sprint-Funktionen auslesen
+            var tTime = info.timerTime;
+            var currentCad = (info.currentCadence != null) ? info.currentCadence : 0;
             
-            // Merker für den nächsten Durchlauf setzen
-            _lastHiMinTimerTime = currentTimerTime;
-        }
+            // HIT berechnen
+            processHiMinutes(tTime, currentHR);
+            // Sprints berechnen
+            processSprintLogic(currentCad);
+            
         }   
+    }
+
+    // --- Funktion für HIT-Minuten ---
+    function processHiMinutes(timerTime , hr ) as Void {
+        if (timerTime == null) { return; }
+        // 1. Delta-Zeit seit dem letzten Aufruf berechnen
+        var deltaMs = timerTime - _lastHiMinTimerTime;
+
+        // Schutz gegen negative Werte (z.B. beim Zurücksetzen der Session)
+        if (deltaMs > 0 && deltaMs < 5000) {
+            // 2. Sind wir in der roten oder orangenen Zone? (hrZones[3] = Grenze zu Zone 4) 
+            if (hr > 0 && hrZones != null && hr >= hrZones[3]) {
+                // 3. Wenn ja, Delta-Zeit zum Akkumulator hinzufügen
+                hiTimeAccumulatorMs += deltaMs;
+                // 4. Vollendete Minuten berechnen
+                var calculatedMinutes = hiTimeAccumulatorMs / 60000;
+                // 5. Wenn wir eine neue volle Minute erreicht haben, in hiMinutes speichern und ins FIT-File schreiben
+                if (calculatedMinutes > hiMinutes) {
+                    hiMinutes = calculatedMinutes;
+                    if (fieldHiMinutes != null) {
+                        fieldHiMinutes.setData(hiMinutes);
+                    }
+                }
+            }
+        }
+        // 6. Aktuelle Zeit als Referenz für den nächsten Aufruf speichern
+        _lastHiMinTimerTime = timerTime;
+    }
+
+    // --- Funktion für Sprints ---
+    function processSprintLogic(cadence ) as Void {
+        // Wenn die Schrittfrequenz über dem oberen Schwellenwert liegt, könnte ein Sprint beginnen oder andauern
+        if (cadence >= SPRINT_CADENCE_THRESHOLD_HIGH) {
+            // Sprint-Dauer hochzählen
+            _sprintDurationSeconds++;
+            // Wenn die Sprint-Dauer den Mindestwert erreicht hat und wir noch nicht als Sprint erkannt wurden, Sprint zählen
+            if (_sprintDurationSeconds >= MIN_SPRINT_DURATION_SECS) {
+                if (!_isCurrentlySprint) {
+                    _isCurrentlySprint = true;
+                    sprintCount++; 
+                    if (fieldSprintCount != null) {
+                        fieldSprintCount.setData(sprintCount);
+                    }
+                }
+            }
+        // Wenn die Schrittfrequenz unter dem unteren Schwellenwert liegt, Sprint-Status zurücksetzen
+        } else if (cadence < SPRINT_CADENCE_THRESHOLD_LOW) {
+            _isCurrentlySprint = false;
+            _sprintDurationSeconds = 0; 
+        }
     }
 
     // Funktion ermittelt die Farbe anhand des aktuellen Pulses
