@@ -23,5 +23,12 @@
                   precision="0"
                   dataLabel="@Strings.HiMinLabel"
                   unitLabel="@Strings.HiMinUnit" />
+        <fitField id="3"
+                  displayInChart="false"   
+                  displayInActivitySummary="true"
+                  sortOrder="3"
+                  precision="0"
+                  dataLabel="@Strings.SprintLabel"
+                  unitLabel="@Strings.SprintUnit" />
     </fitContributions>
 </resources>

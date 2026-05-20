@@ -16,6 +16,9 @@ class SoccerView extends WatchUi.View {
     private var _distLabel as String;
     private var _hitLabel as String;
     private var _timerLabel as String;
+    private var _speedLabel as String;
+    private var _calLabel as String;
+    private var _sprintLabel as String;
 
 
     public function initialize(model as SoccerModel) {
@@ -29,7 +32,9 @@ class SoccerView extends WatchUi.View {
         _distLabel = WatchUi.loadResource($.Rez.Strings.ViewDistance);
         _hitLabel = WatchUi.loadResource($.Rez.Strings.ViewHIT);
         _timerLabel = WatchUi.loadResource($.Rez.Strings.ViewTimer);
-        
+        _speedLabel = WatchUi.loadResource($.Rez.Strings.ViewSpeed);
+        _calLabel = WatchUi.loadResource($.Rez.Strings.ViewCalories);
+        _sprintLabel = WatchUi.loadResource($.Rez.Strings.ViewSprint);
 
     }
 
@@ -56,8 +61,10 @@ class SoccerView extends WatchUi.View {
         if (_model.currentPage == 0) {
             drawMetricsPage(dc, cx, cy);
         } else if (_model.currentPage == 1) {
-            drawScoreboardPage(dc, cx, cy);
+            drawPerformancePage(dc, cx, cy);
         } else if (_model.currentPage == 2) {
+            drawScoreboardPage(dc, cx, cy);
+        } else if (_model.currentPage == 3) {
             drawClockPage(dc, cx, cy);
         }
 
@@ -130,6 +137,7 @@ class SoccerView extends WatchUi.View {
         dc.drawText(width * 0.25, height * 0.52, Graphics.FONT_MEDIUM, _model.distanceKm.format("%.2f"), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         dc.drawText(width * 0.75, height * 0.52, Graphics.FONT_MEDIUM, _model.hiMinutes.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
+
         // --- BEREICH 3: TIMER (Unten) ---
 
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
@@ -147,6 +155,45 @@ class SoccerView extends WatchUi.View {
         var pts = [ [x - 10, y - 2], [x + 10, y - 2], [x, y + 10] ];
         dc.fillPolygon(pts);
     }
+
+    // --- SEITE: PERFORMANCE METRIKEN (Sprints, Geschwindigkeit, Kalorien) ---
+    private function drawPerformancePage(dc as Dc, cx as Number, cy as Number) {
+        var width = dc.getWidth();
+        var height = dc.getHeight();
+
+        // 1. Gitter-Linien (Exakt deckungsgleich mit der ersten Metrik-Seite)
+        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawLine(0, height * 0.32, width, height * 0.32);
+        dc.drawLine(0, height * 0.65, width, height * 0.65);
+        dc.drawLine(width / 2, height * 0.32, width / 2, height * 0.65);
+
+        // --- BEREICH 1: AKTULLE GESCHWINDIGKEIT (Oben - analog zur HF-Position) ---
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        // Kleiner Text-Indikator ganz oben im Kreissegement
+        dc.drawText(cx, height * 0.06, Graphics.FONT_XTINY, _speedLabel, Graphics.TEXT_JUSTIFY_CENTER);
+        
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, height * 0.18, Graphics.FONT_LARGE, _model.currentSpeedKmh.format("%.1f"), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+
+        // --- BEREICH 2: KALORIEN & SPRINTS (Mitte - analog zu Distanz/HIT) ---
+        // Labels (Höhenposition exakt gespiegelt zur ersten Seite)
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(width * 0.25, height * 0.38, Graphics.FONT_XTINY, _calLabel, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(width * 0.75, height * 0.38, Graphics.FONT_XTINY, _sprintLabel, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // Werte
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(width * 0.25, height * 0.52, Graphics.FONT_MEDIUM, _model.calories.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(width * 0.75, height * 0.52, Graphics.FONT_MEDIUM, _model.sprintCount.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+
+        // --- BEREICH 3: TIMER (Unten - identisch zur drawMetricsPage) ---
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, _timerLabel, Graphics.TEXT_JUSTIFY_CENTER);
+
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, height * 0.83, Graphics.FONT_LARGE, _model.activityTimeStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+    
 
     // --- SEITE: UHRZEIT ---
     private function drawClockPage(dc as Dc, cx as Number, cy as Number) {

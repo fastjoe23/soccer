@@ -22,4 +22,9 @@
     <string id="ScoreUnit">Tore</string>
     <string id="HiMinLabel">HI-Minuten (Zone 5)</string>
     <string id="HiMinUnit">Min</string>
+    <string id="SprintLabel">Sprints</string>
+    <string id="SprintUnit">Anz.</string>
+    <string id="ViewSprint">SPRINTS</string>
+    <string id="ViewCalories">KCAL</string>
+    <string id="ViewSpeed">KM/H</string>
 </strings>

@@ -23,4 +23,9 @@
     <string id="ScoreUnit">Goals</string>
     <string id="HiMinLabel">HI-Minutes (Zone 5)</string>
     <string id="HiMinUnit">Min</string>
+    <string id="SprintLabel">Sprints</string>
+    <string id="SprintUnit">ct</string>
+    <string id="ViewSprint">SPRINTS</string>
+    <string id="ViewCalories">KCAL</string>
+    <string id="ViewSpeed">KM/H</string>
 </strings>
