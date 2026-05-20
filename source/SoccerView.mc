@@ -70,6 +70,52 @@ class SoccerView extends WatchUi.View {
 
         drawPageIndicator(dc, cx, dc.getHeight() - 15);
     }
+    //--------------------------------------------
+    // --- Hilfs-Funktionen für die Seiten     ---
+    //--------------------------------------------
+
+    // --- HELPER: Hintergrund-Gitter zeichnen ---
+    private function drawGridBackground(dc as Dc, width as Number, height as Number) {
+        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawLine(0, height * 0.32, width, height * 0.32);
+        dc.drawLine(0, height * 0.65, width, height * 0.65);
+        dc.drawLine(width / 2, height * 0.32, width / 2, height * 0.65);
+    }
+
+    // --- HELPER: Mittleren 2er-Block zeichnen ---
+    private function drawMiddleDualMetrics(dc as Dc, width as Number, height as Number, labelLeft as String, labelRight as String, valLeft as String, valRight as String) {
+        // Labels
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(width * 0.25, height * 0.38, Graphics.FONT_XTINY, labelLeft, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(width * 0.75, height * 0.38, Graphics.FONT_XTINY, labelRight, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // Werte
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(width * 0.25, height * 0.52, Graphics.FONT_MEDIUM, valLeft, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(width * 0.75, height * 0.52, Graphics.FONT_MEDIUM, valRight, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // --- HELPER: Timer unten zeichnen ---
+    private function drawBottomTimer(dc as Dc, cx as Number, height as Number) {
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, _timerLabel, Graphics.TEXT_JUSTIFY_CENTER);
+
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, height * 0.83, Graphics.FONT_LARGE, _model.activityTimeStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // Hilfsfunktion: Zeichnet ein Herz aus Primitiven (sehr RAM-schonend)
+    private function drawHeart(dc, x, y) {
+        dc.fillCircle(x - 5, y - 4, 5); // Linker Bogen
+        dc.fillCircle(x + 5, y - 4, 5); // Rechter Bogen
+        // Das untere Dreieck des Herzens
+        var pts = [ [x - 10, y - 2], [x + 10, y - 2], [x, y + 10] ];
+        dc.fillPolygon(pts);
+    }
+
+    //--------------------------------------------
+    // --- Funktionen für die einzelnen Seiten ---
+    //--------------------------------------------
 
     // --- SEITE: SCOREBOARD (Mit Button-Hints) ---
    private function drawScoreboardPage(dc as Dc, cx as Number, cy as Number) {
@@ -104,96 +150,43 @@ class SoccerView extends WatchUi.View {
         }
     }
 
-    // --- SEITE: METRIKEN (Im nativen Garmin-Grid-Design) ---
+    // --- SEITE 0: METRIKEN (Puls, Distanz, HIT) ---
     private function drawMetricsPage(dc, cx, cy) {
         var width = dc.getWidth();
         var height = dc.getHeight();
 
-        // 1. Raster-Linien zeichnen (Dunkelgrau für dezenten Look)
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        // Horizontale Linien
-        dc.drawLine(0, height * 0.32, width, height * 0.32);
-        dc.drawLine(0, height * 0.65, width, height * 0.65);
-        // Vertikale Linie in der Mitte (nur für den mittleren Bereich)
-        dc.drawLine(width / 2, height * 0.32, width / 2, height * 0.65);
+        drawGridBackground(dc, width, height);
 
-        // --- BEREICH 1: HERZFREQUENZ (Oben) ---
+        // BEREICH 1: HERZFREQUENZ (Individuell)
         var hrY = height * 0.16;
         dc.setColor(_model.getHrColor(), Graphics.COLOR_TRANSPARENT);
-        // Herz-Icon links vom Text zeichnen
-        drawHeart(dc, cx - 35, hrY); 
+        drawHeart(dc, cx - 35, hrY); // Herz-Icon
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx + 10, hrY, Graphics.FONT_LARGE, _model.currentHR.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // --- BEREICH 2: DISTANZ & High Intensity (Mitte) ---
-        // Labels (kleiner und etwas oberhalb der Werte)
-
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width * 0.25, height * 0.38, Graphics.FONT_XTINY, _distLabel, Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(width * 0.75, height * 0.38, Graphics.FONT_XTINY, _hitLabel, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // Werte
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width * 0.25, height * 0.52, Graphics.FONT_MEDIUM, _model.distanceKm.format("%.2f"), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-        dc.drawText(width * 0.75, height * 0.52, Graphics.FONT_MEDIUM, _model.hiMinutes.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-
-        // --- BEREICH 3: TIMER (Unten) ---
-
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, _timerLabel, Graphics.TEXT_JUSTIFY_CENTER);
-
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, height * 0.83, Graphics.FONT_LARGE, _model.activityTimeStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        // BEREICH 2 & 3: Über Helper-Funktionen zeichnen
+        drawMiddleDualMetrics(dc, width, height, _distLabel, _hitLabel, _model.distanceKm.format("%.2f"), _model.hiMinutes.toString());
+        drawBottomTimer(dc, cx, height);
     }
 
-    // Hilfsfunktion: Zeichnet ein Herz aus Primitiven (sehr RAM-schonend)
-    private function drawHeart(dc, x, y) {
-        dc.fillCircle(x - 5, y - 4, 5); // Linker Bogen
-        dc.fillCircle(x + 5, y - 4, 5); // Rechter Bogen
-        // Das untere Dreieck des Herzens
-        var pts = [ [x - 10, y - 2], [x + 10, y - 2], [x, y + 10] ];
-        dc.fillPolygon(pts);
-    }
-
-    // --- SEITE: PERFORMANCE METRIKEN (Sprints, Geschwindigkeit, Kalorien) ---
+    // --- SEITE 1: PERFORMANCE METRIKEN (Speed, Kalorien, Sprints) ---
     private function drawPerformancePage(dc as Dc, cx as Number, cy as Number) {
         var width = dc.getWidth();
         var height = dc.getHeight();
 
-        // 1. Gitter-Linien (Exakt deckungsgleich mit der ersten Metrik-Seite)
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(0, height * 0.32, width, height * 0.32);
-        dc.drawLine(0, height * 0.65, width, height * 0.65);
-        dc.drawLine(width / 2, height * 0.32, width / 2, height * 0.65);
+        drawGridBackground(dc, width, height);
 
-        // --- BEREICH 1: AKTULLE GESCHWINDIGKEIT (Oben - analog zur HF-Position) ---
+        // BEREICH 1: AKTULLE GESCHWINDIGKEIT (Individuell)
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        // Kleiner Text-Indikator ganz oben im Kreissegement
         dc.drawText(cx, height * 0.06, Graphics.FONT_XTINY, _speedLabel, Graphics.TEXT_JUSTIFY_CENTER);
-        
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, height * 0.18, Graphics.FONT_LARGE, _model.currentSpeedKmh.format("%.1f"), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // --- BEREICH 2: KALORIEN & SPRINTS (Mitte - analog zu Distanz/HIT) ---
-        // Labels (Höhenposition exakt gespiegelt zur ersten Seite)
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width * 0.25, height * 0.38, Graphics.FONT_XTINY, _calLabel, Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(width * 0.75, height * 0.38, Graphics.FONT_XTINY, _sprintLabel, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // Werte
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width * 0.25, height * 0.52, Graphics.FONT_MEDIUM, _model.calories.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-        dc.drawText(width * 0.75, height * 0.52, Graphics.FONT_MEDIUM, _model.sprintCount.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        // --- BEREICH 3: TIMER (Unten - identisch zur drawMetricsPage) ---
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, _timerLabel, Graphics.TEXT_JUSTIFY_CENTER);
-
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, height * 0.83, Graphics.FONT_LARGE, _model.activityTimeStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        // BEREICH 2 & 3: Über Helper-Funktionen zeichnen
+        drawMiddleDualMetrics(dc, width, height, _calLabel, _sprintLabel, _model.calories.toString(), _model.sprintCount.toString());
+        drawBottomTimer(dc, cx, height);
     }
-    
+
 
     // --- SEITE: UHRZEIT ---
     private function drawClockPage(dc as Dc, cx as Number, cy as Number) {
