@@ -28,5 +28,8 @@
         <string id="ViewSprint">SPRINTS</string>
         <string id="ViewCalories">KCAL</string>
         <string id="ViewSpeed">KM/H</string>
+        <string id="CadenceLabel">Cadencia</string>
+        <string id="CadenceUnit">Pasos/min</string>
+        <string id="CadenceTitle">Cadencia a lo largo del tiempo</string>
     </strings>
 </resources>

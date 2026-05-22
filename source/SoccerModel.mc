@@ -69,6 +69,7 @@ class SoccerModel {
     var fieldScoreA = null;
     var fieldScoreB = null;
     var fieldHiMinutes = null;
+    var fieldCadence = null;
     
     // Speichert das Array mit den Schwellenwerten für die Herzfrequenzzonen
     var hrZones = [90, 110, 130, 150, 170, 190];
@@ -120,6 +121,8 @@ class SoccerModel {
             var unitMin = WatchUi.loadResource($.Rez.Strings.HiMinUnit);
             var labelSprint =  WatchUi.loadResource($.Rez.Strings.SprintLabel);
             var unitSprint = WatchUi.loadResource($.Rez.Strings.SprintUnit);
+            var labelCadence = WatchUi.loadResource($.Rez.Strings.CadenceLabel);
+            var unitCadence = WatchUi.loadResource($.Rez.Strings.CadenceUnit);
 
             // --- Score-Felder erstellen ---
             fieldScoreA = session.createField(labelA, 0, FitContributor.DATA_TYPE_UINT8, {
@@ -141,13 +144,21 @@ class SoccerModel {
             fieldSprintCount = session.createField(labelSprint, 3, FitContributor.DATA_TYPE_UINT8, {
                 :mesgType => FitContributor.MESG_TYPE_SESSION,
                 :units => unitSprint
-            });         
+            });  
+
+            // ---Feld für die Schrittfrequenz (Graph über Zeit) ---
+            // ID 4, Typ UINT8 reicht völlig aus (0-255 Schritte/Min)
+            fieldCadence = session.createField(labelCadence, 4, FitContributor.DATA_TYPE_UINT8, {
+                :mesgType => FitContributor.MESG_TYPE_RECORD,
+                :units => unitCadence // Steps per minute
+            });       
             
             // Initiale Werte in die FIT-Datei schreiben
             fieldScoreA.setData(scoreA);
             fieldScoreB.setData(scoreB);
             fieldHiMinutes.setData(0);
             fieldSprintCount.setData(0);
+            fieldCadence.setData(0);
         }
         
         if (!session.isRecording()) {
@@ -283,12 +294,17 @@ class SoccerModel {
 
             // Werte für die HIT und Sprint-Funktionen auslesen
             var tTime = info.timerTime;
-            var currentCad = (info.currentCadence != null) ? info.currentCadence : 0;
+            currentCadence = (info.currentCadence != null) ? info.currentCadence : 0;
+            // Nur in die Datei schreiben, wenn die Aufzeichnung aktiv läuft
+            if (isRecording() && fieldCadence != null) {
+                    fieldCadence.setData(currentCadence);
+               
+            }          
             
             // HIT berechnen
             processHiMinutes(tTime, currentHR);
             // Sprints berechnen
-            processSprintLogic(currentCad);
+            processSprintLogic(currentCadence);
             
         }   
     }
