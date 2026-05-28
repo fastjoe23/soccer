@@ -68,8 +68,8 @@ class SoccerModel {
     // --- Variablen für den gleitenden Durchschnitt ---
     private const SPEED_BUFFER_SIZE = 30; // 30 Sekunden Historie
     private var _speedBuffer = new [SPEED_BUFFER_SIZE];
+    private var _speedBufferSum = 0.0;
     private var _speedBufferIndex = 0;
-    private var _speedBufferCount = 0;
     private var _movingAvgSpeed = 0.0;
 
     // Variablen für FIT-Felder
@@ -94,6 +94,11 @@ class SoccerModel {
 
         //Schalter Indoor/Outdoor aus Properties holen
         isIndoor = Application.Properties.getValue("is_indoor");
+
+        // SpeedPuffer mit Nullen initialisieren ---
+        for (var i = 0; i < SPEED_BUFFER_SIZE; i++) {
+            _speedBuffer[i] = 0.0;
+        }
     }
 
     // Die Schaltzentrale für die Aufnahme
@@ -264,6 +269,7 @@ class SoccerModel {
         if (session != null) {
             session.save();
             session = null; // Session aufräumen
+            cleanupResources(); // Sensoren und GPS abschalten
         }
     }
 
@@ -271,7 +277,17 @@ class SoccerModel {
         if (session != null) {
             session.discard();
             session = null; // Session aufräumen
+            cleanupResources(); // Sensoren und GPS abschalten
         }
+    }
+
+    // Hilfsfunktion, um Sensoren und GPS nach dem Spiel komplett schlafen zu legen
+    private function cleanupResources() as Void {
+        // 1. GPS ausschalten (deaktiviert die Ortsbestimmung komplett)
+        Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
+        
+        // 2. Sensor-Events abmelden (Callback auf null setzen löscht das Abo)
+        Sensor.enableSensorEvents(null);
     }
 
     // Hilfsfunktion für die View (um z.B. ein "REC" Icon anzuzeigen)
@@ -403,26 +419,24 @@ class SoccerModel {
         }
     }
 
-    // Berechnet den gleitenden Durchschnitt der Geschwindigkeit
+// Berechnet den gleitenden Durchschnitt über eine Running Sum
     private function updateMovingAverage(currentSpeedKmh) {
-        // Neuen Wert in den Puffer schreiben
+        // 1. Den ganz alten Wert, der jetzt rausfliegt, von der Summe abziehen
+        var oldestValue = _speedBuffer[_speedBufferIndex];
+        _speedBufferSum -= oldestValue;
+        
+        // 2. Den neuen Wert in den Puffer schreiben
         _speedBuffer[_speedBufferIndex] = currentSpeedKmh;
         
-        // Index weiterrücken (springt auf 0 zurück, wenn das Ende erreicht ist)
+        // 3. Den neuen Wert zur laufenden Summe addieren
+        _speedBufferSum += currentSpeedKmh;
+        
+        // Index für die nächste Sekunde weiterrücken
         _speedBufferIndex = (_speedBufferIndex + 1) % SPEED_BUFFER_SIZE;
         
-        // Zähler erhöhen, bis der Puffer einmal voll ist
-        if (_speedBufferCount < SPEED_BUFFER_SIZE) {
-            _speedBufferCount++;
-        }
+        // 4. Durchschnitt ist jetzt einfach: Summe geteilt durch 30
+        _movingAvgSpeed = _speedBufferSum / SPEED_BUFFER_SIZE;
         
-        // Aktuellen Durchschnitt berechnen
-        var sum = 0.0;
-        for (var i = 0; i < _speedBufferCount; i++) {
-            sum += _speedBuffer[i];
-        }
-        
-        _movingAvgSpeed = sum / _speedBufferCount;
         return _movingAvgSpeed;
     }
 

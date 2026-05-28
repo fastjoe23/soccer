@@ -201,7 +201,7 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
                         :enabled=>WatchUi.loadResource($.Rez.Strings.IndoorEnabled), 
                         :disabled=>WatchUi.loadResource($.Rez.Strings.IndoorDisabled)
                     }, 
-                    "toggle_indoor", 
+                    :toggle_indoor, 
                     _model.isIndoor, 
                     null
                 )

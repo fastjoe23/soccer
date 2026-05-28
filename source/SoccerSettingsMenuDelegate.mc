@@ -18,6 +18,7 @@
  */
 
 import Toybox.WatchUi;
+import Toybox.Application;
 
 class SoccerSettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
     var _model;
@@ -29,7 +30,8 @@ class SoccerSettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
 
     function onSelect(item) {
         // Prüfen, ob der Indoor-Schalter geklickt wurde
-        if (item.getId().equals("toggle_indoor")) {
+        var itemId = item.getId();
+        if (itemId == :toggle_indoor) {
             // Der Schalter wurde betätigt, den neuen Zustand auslesen
             var toggleItem = item as WatchUi.ToggleMenuItem;
             // Zustand (true/false) aus dem Schalter auslesen und im Model speichern

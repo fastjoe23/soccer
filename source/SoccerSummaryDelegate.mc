@@ -18,6 +18,7 @@
  */
 
 import Toybox.WatchUi;
+import Toybox.System;
 // Der Delegate für die Summary: Er wartet nur auf den finalen Tastendruck
 class SoccerSummaryDelegate extends WatchUi.BehaviorDelegate {
     function initialize() {
