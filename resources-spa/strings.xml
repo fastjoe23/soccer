@@ -31,5 +31,10 @@
         <string id="CadenceLabel">Cadencia</string>
         <string id="CadenceUnit">Pasos/min</string>
         <string id="CadenceTitle">Cadencia a lo largo del tiempo</string>
+        <string id="HomeScoreLabel">Goles Equipo A</string>
+        <string id="AwayScoreLabel">Goles Equipo B</string>
+        <string id="HomeScoreTitle">Goles Equipo A a lo largo del tiempo</string>
+        <string id="AwayScoreTitle">Goles Equipo B a lo largo del tiempo</string>
+
     </strings>
 </resources>

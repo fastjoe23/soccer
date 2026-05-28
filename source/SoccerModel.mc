@@ -70,6 +70,8 @@ class SoccerModel {
     var fieldScoreB = null;
     var fieldHiMinutes = null;
     var fieldCadence = null;
+    private var fieldLapScoreA = null;
+    private var fieldLapScoreB = null;
     
     // Speichert das Array mit den Schwellenwerten für die Herzfrequenzzonen
     var hrZones = [90, 110, 130, 150, 170, 190];
@@ -151,7 +153,17 @@ class SoccerModel {
             fieldCadence = session.createField(labelCadence, 4, FitContributor.DATA_TYPE_UINT8, {
                 :mesgType => FitContributor.MESG_TYPE_RECORD,
                 :units => unitCadence // Steps per minute
-            });       
+            });
+
+            // --- Runden-Felder für den Ticker erstellen ---
+            fieldLapScoreA = session.createField("lapScoreA", 5, FitContributor.DATA_TYPE_UINT8, {
+                :mesgType => FitContributor.MESG_TYPE_LAP,
+                :units => unitScore
+            });
+            fieldLapScoreB = session.createField("lapScoreB", 6, FitContributor.DATA_TYPE_UINT8, {
+                :mesgType => FitContributor.MESG_TYPE_LAP,
+                :units => unitScore
+            });  
             
             // Initiale Werte in die FIT-Datei schreiben
             fieldScoreA.setData(scoreA);
@@ -190,6 +202,7 @@ class SoccerModel {
         if (fieldScoreA != null) {
             fieldScoreA.setData(scoreA);
         }
+        logGoal();
     }
 
     // Eigene Funktion für Team B
@@ -197,6 +210,18 @@ class SoccerModel {
         scoreB++;
         if (fieldScoreB != null) {
             fieldScoreB.setData(scoreB);
+        }
+        // Eintrag in die Runden-Tabelle schreiben
+        logGoal();
+    }
+
+    // Funktion zum Loggen eines Tores
+    function logGoal() {
+        // Eintrag in die Runden-Tabelle schreiben
+        if (session != null && session.isRecording()) {
+            if (fieldLapScoreA != null) { fieldLapScoreA.setData(scoreA); }
+            if (fieldLapScoreB != null) { fieldLapScoreB.setData(scoreB); }
+            addLap();// Schließt die aktuelle "Runde" ab und loggt den Spielstand
         }
     }
 
@@ -207,6 +232,7 @@ class SoccerModel {
             if (fieldScoreA != null) {
                 fieldScoreA.setData(scoreA);
             }
+            logGoal(); // Auch hier die Runden-Tabelle aktualisieren, damit die Historie der Tore korrekt bleibt
         }
     }
 
@@ -217,6 +243,7 @@ class SoccerModel {
             if (fieldScoreB != null) {
                 fieldScoreB.setData(scoreB);
             }
+            logGoal(); // Auch hier die Runden-Tabelle aktualisieren, damit die Historie der Tore korrekt bleibt
         }
     }
 

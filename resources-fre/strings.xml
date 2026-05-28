@@ -31,5 +31,9 @@
         <string id="CadenceLabel">Cadence</string>
         <string id="CadenceUnit">Pas/min</string>
         <string id="CadenceTitle">Evolution de la cadence</string>
+        <string id="HomeScoreLabel">Buts Équipe A</string>
+        <string id="AwayScoreLabel">Buts Équipe B</string>
+        <string id="HomeScoreTitle">Buts Équipe A a lo largo del tiempo</string>
+        <string id="AwayScoreTitle">Buts Équipe B a lo largo del tiempo</string>
     </strings>
 </resources>

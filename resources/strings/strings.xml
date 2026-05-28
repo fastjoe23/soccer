@@ -31,4 +31,8 @@
     <string id="CadenceLabel">Cadence</string>
     <string id="CadenceUnit">Steps/min</string>
     <string id="CadenceTitle">Cadence over Time</string>
+    <string id="HomeScoreLabel">Team A Goals</string>
+    <string id="AwayScoreLabel">Team B Goals</string>
+    <string id="HomeScoreTitle">Team A Goals over Time</string>
+    <string id="AwayScoreTitle">Team B Goals over Time</string>
 </strings>

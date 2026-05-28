@@ -38,6 +38,19 @@
                   precision="0" 
                   chartTitle="@Strings.CadenceTitle" 
                   dataLabel="@Strings.CadenceLabel" 
-                  unitLabel="@Strings.CadenceUnit" />
+                  unitLabel="@Strings.CadenceUnit"
+                  fillColor="#00A8F3" />
+
+        <fitField id="5" 
+                  displayInChart="false" 
+                  sortOrder="5"
+                  dataLabel="@Strings.HomeScoreLabel" 
+                  unitLabel="@Strings.ScoreUnit" />
+
+        <fitField id="6" 
+                  displayInChart="false" 
+                  sortOrder="6"
+                  dataLabel="@Strings.AwayScoreLabel" 
+                  unitLabel="@Strings.ScoreUnit" />
     </fitContributions>
 </resources>

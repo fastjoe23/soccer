@@ -30,4 +30,8 @@
     <string id="CadenceLabel">Schrittfrequenz</string>
     <string id="CadenceUnit">Schritte/min</string>
     <string id="CadenceTitle">Schrittfrequenz über Zeit</string>
+    <string id="HomeScoreLabel">Tore Team A</string>
+    <string id="AwayScoreLabel">Tore Team B</string>
+    <string id="HomeScoreTitle">Tore Team A über Zeit</string>
+    <string id="AwayScoreTitle">Tore Team B über Zeit</string>
 </strings>
