@@ -204,4 +204,217 @@ class SoccerModelTest {
         
         return true;
     }
+
+    
+    // --------------------------------------------------------
+    // TEST 5: Sprint beginnt exakt auf Threshold
+    // --------------------------------------------------------
+    (:test)
+    static function testSprintThresholdBoundary(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        // Durchschnitt vorbereiten
+        for (var i = 0; i < 30; i++) {
+            model.processSprintLogic(10.0);
+        }
+
+        // 10 * 1.6 = exakt 16.0
+        model.processSprintLogic(16.0);
+        model.processSprintLogic(16.0);
+
+        // Erwartung:
+        // Wenn dein Code ">" nutzt -> kein Sprint
+        // Wenn dein Code ">=" nutzt -> Sprint
+
+        // HIER ANPASSEN:
+        var expectedSprintCount = 0;
+
+        if (model.sprintCount != expectedSprintCount) {
+            logger.error("Threshold-Verhalten inkonsistent.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 6: Sprint wird durch kurzen Peak NICHT ausgelöst
+    // --------------------------------------------------------
+    (:test)
+    static function testShortSpeedSpikeDoesNotTriggerSprint(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        for (var i = 0; i < 30; i++) {
+            model.processSprintLogic(6.0);
+        }
+
+        // Nur 1 Sekunde Peak
+        model.processSprintLogic(20.0);
+
+        if (model.sprintCount != 0) {
+            logger.error("Sprint wurde durch kurzen Peak ausgelöst.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 7: Mehrere Sprints korrekt getrennt zählen
+    // --------------------------------------------------------
+    (:test)
+    static function testMultipleIndependentSprints(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        for (var i = 0; i < 30; i++) {
+            model.processSprintLogic(6.0);
+        }
+
+        // Sprint 1
+        model.processSprintLogic(20.0);
+        model.processSprintLogic(20.0);
+
+        // Vollständiger Abbruch
+        model.processSprintLogic(4.0);
+        model.processSprintLogic(4.0);
+
+        // Sprint 2
+        model.processSprintLogic(20.0);
+        model.processSprintLogic(20.0);
+
+        if (model.sprintCount != 2) {
+            logger.error("Mehrere getrennte Sprints wurden falsch gezählt.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 8: High Intensity Minuten dürfen nicht negativ werden
+    // --------------------------------------------------------
+    (:test)
+    static function testHiMinutesNeverNegative(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        var currentTimeMs = 1000;
+
+        for (var i = 0; i < 100; i++) {
+            currentTimeMs += 1000;
+            model.processHiMinutes(currentTimeMs, 80);
+        }
+
+        if (model.hiMinutes < 0) {
+            logger.error("HI Minutes wurden negativ.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 9: Sehr hohe Herzfrequenzwerte
+    // --------------------------------------------------------
+    (:test)
+    static function testExtremeHeartRateValues(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        model.currentHR = 999;
+
+        if (model.getHrColor() != Graphics.COLOR_RED) {
+            logger.error("Extreme HR-Werte werden falsch behandelt.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 10: Negative Herzfrequenzwerte
+    // --------------------------------------------------------
+    (:test)
+    static function testNegativeHeartRate(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        model.currentHR = -10;
+
+        // Erwartung: Niedrigste Zone
+        if (model.getHrColor() != Graphics.COLOR_LT_GRAY) {
+            logger.error("Negative HR-Werte führen zu falscher Zone.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 11: Score darf niemals negativ werden
+    // --------------------------------------------------------
+    (:test)
+    static function testScoreNeverNegative(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        for (var i = 0; i < 20; i++) {
+            model.subGoalTeamA();
+            model.subGoalTeamB();
+        }
+
+        if (model.scoreA < 0 || model.scoreB < 0) {
+            logger.error("Score wurde negativ.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 12: Sehr hohe Scores
+    // --------------------------------------------------------
+    (:test)
+    static function testVeryHighScores(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        for (var i = 0; i < 200; i++) {
+            model.addGoalTeamA();
+        }
+
+        if (model.scoreA != 200) {
+            logger.error("Hohe Scores werden falsch verarbeitet.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // TEST 13: Moving Average stabilisiert sich korrekt
+    // --------------------------------------------------------
+    (:test)
+    static function testMovingAverageStability(logger) as Boolean {
+
+        var model = new $.SoccerModel();
+
+        for (var i = 0; i < 200; i++) {
+            model.processSprintLogic(10.0);
+        }
+
+        // Nach langer stabiler Geschwindigkeit
+        // darf kein Sprint entstehen
+        if (model.sprintCount != 0) {
+            logger.error("Moving Average driftet fehlerhaft.");
+            return false;
+        }
+
+        return true;
+    }
+
+
 }
