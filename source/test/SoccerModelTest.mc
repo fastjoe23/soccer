@@ -61,39 +61,98 @@ class SoccerModelTest {
     }
 
     // --------------------------------------------------------
-    // TEST 3: Sprint Hysterese und Zeitfenster-Filter
+    // TEST 3: Sprint-Erkennung mit gleitendem Durchschnitt (Moving Average)
     // --------------------------------------------------------
     (:test)
-    static function testSprintDetectionFilter(logger ) as Boolean {
+    static function testSprintDetectionMovingAverage(logger) as Boolean {
         var model = new $.SoccerModel();
         
-        // 1. Kurzer Ausreißer (z.B. Einwurf) -> Sollte nicht zählen
-        model.processSprintLogic(180); // Sekunde 1
-        model.processSprintLogic(180); // Sekunde 2
-        model.processSprintLogic(150); // Sekunde 3 (Fällt ab)
+        // --- EDGE CASE 1: Antritt aus dem Stand (Akute Beschleunigung) ---
+        // Wenn der Hobbysportler steht, ist der Moving Average 0.0 km/h.
+        // Ein Antritt auf 11 km/h ist zwar doppelt so schnell wie der Schnitt (0 * 2 = 0),
+        // MUSS aber durch die absolute Mindestgeschwindigkeit von 12.0 km/h blockiert werden!
+        
+        model.processSprintLogic(11.0); // 1. Sekunde: unter MIN_SPEED_KMH
+        model.processSprintLogic(11.0); // 2. Sekunde
+        model.processSprintLogic(11.0); // 3. Sekunde
         
         if (model.sprintCount != 0) {
-            logger.error("Fehler: Sprint wurde zu früh gezählt (Anti-Chatter versagt).");
+            logger.error("EC1 fehlgeschlagen: Sprint aus dem Stand gezählt, obwohl unter MIN_SPEED_KMH.");
             return false;
         }
+
+        // --- EDGE CASE 2: Echter, gültiger Sprint für Hobbysportler ---
+        // Wir simulieren gemütliches Traben (6 km/h) für 30 Sekunden, um den Puffer zu füllen.
+        for (var i = 0; i < 30; i++) {
+            model.processSprintLogic(6.0);
+        }
         
-        // 2. Echter Sprint (3 Sekunden Vollgas)
-        model.processSprintLogic(180); // Sekunde 1
-        model.processSprintLogic(185); // Sekunde 2
-        model.processSprintLogic(190); // Sekunde 3
+        // Jetzt explosionsartiger Antritt: Schnitt ist 6 km/h -> Schwelle für Multiplier (1.6) ist 9.6 km/h.
+        // Da wir über 12.0 km/h (MIN_SPEED) und über 9.6 km/h springen, muss das greifen!
+        model.processSprintLogic(16.0); // Sekunde 1 des Sprints
+        model.processSprintLogic(16.0); // Sekunde 2 des Sprints -> JETZT muss der Counter fliegen (MIN_SPRINT_DURATION_SECS = 2)
         
         if (model.sprintCount != 1) {
-            logger.error("Fehler: Echter Sprint wurde nicht erkannt.");
+            logger.error("EC2 fehlgeschlagen: Echter Sprint (2s, >12km/h, >1.6x Schnitt) wurde nicht erkannt.");
             return false;
         }
+
+        // --- EDGE CASE 3: Sprint halten (Dauer-Vollgas) ---
+        // Wir rennen weiter mit 16 km/h. Der Counter darf nicht weiter hochzählen!
+        model.processSprintLogic(16.0); // Sekunde 3
+        model.processSprintLogic(16.0); // Sekunde 4
         
-        // 3. Sprint halten (sollte den Counter nicht weiter hochzählen)
-        model.processSprintLogic(180); // Sekunde 4
         if (model.sprintCount != 1) {
-            logger.error("Fehler: Gehaltener Sprint hat zweiten Sprint ausgelöst.");
+            logger.error("EC3 fehlgeschlagen: Gehaltener Sprint hat den Counter mehrfach erhöht.");
             return false;
         }
+
+        return true;
+    }
+
+    (:test)
+    static function testSprintCancelAndHysteresis(logger) as Boolean {
+        var model = new $.SoccerModel();
+
+        // --- EDGE CASE 4: Die unfaire Hysterese (Sanftes Auslaufen) ---
+        // Wir füllen den Puffer wieder mit moderatem Tempo (10 km/h).
+        for (var i = 0; i < 30; i++) {
+            model.processSprintLogic(10.0);
+        }
         
+        // Sprint starten: Schnitt 10 -> Multiplier (1.6) erfordert > 16.0 km/h
+        model.processSprintLogic(20.0); // Sekunde 1
+        model.processSprintLogic(20.0); // Sekunde 2 -> Sprint flippt auf true (sprintCount = 1)
+        
+        // Jetzt werden wir langsam müde und bremsen ab auf 14 km/h.
+        // Der Moving Average zieht durch das Renntempo leicht an (auf ca. 10.6 km/h).
+        // 130% von 10.6 km/h wären ~13.8 km/h. Da wir mit 14 km/h noch über dem SPRINT_CANCEL_FACTOR (1.1 bis 1.3) liegen,
+        // darf der Sprint noch NICHT abgebrochen werden! Er läuft im Puffer weiter.
+        model.processSprintLogic(14.0); 
+        
+        // Wenn wir jetzt sofort wieder Gas geben, darf KEIN neuer Sprint zählen, weil der alte nie beendet war.
+        model.processSprintLogic(20.0);
+        model.processSprintLogic(20.0);
+        
+        if (model.sprintCount != 1) {
+            logger.error("EC4 fehlgeschlagen: Unvollständiger Abbruch (Hysterese-Schutz) hat Folge-Sprint fälschlicherweise getriggert.");
+            return false;
+        }
+
+        // --- EDGE CASE 5: Harter Abbruch (Unter das Limit fallen) ---
+        // Wir bremsen radikal ab auf Geh-Tempo (4.0 km/h) -> Das reißt sofort die MIN_SPEED_KMH (12.0)
+        model.processSprintLogic(4.0); 
+        
+        // Jetzt ist der Sprint-Status im Modell garantiert wieder 'false'.
+        // Ein erneuter Antritt muss sofort wieder als neuer Sprint zählen.
+        model.processSprintLogic(20.0);
+        model.processSprintLogic(20.0);
+        
+        if (model.sprintCount != 2) {
+            logger.error("EC5 fehlgeschlagen: Nach hartem Geschwindigkeitsabfall wurde der nächste Sprint blockiert.");
+            return false;
+        }
+
         return true;
     }
 

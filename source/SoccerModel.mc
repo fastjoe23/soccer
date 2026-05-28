@@ -61,9 +61,16 @@ class SoccerModel {
     private var _sprintDurationSeconds = 0; 
     
     // Konfiguration der Sprint-Erkennung
-    private const MIN_SPRINT_DURATION_SECS = 3; // Mindestens 3 Sekunden Vollgas
-    private const SPRINT_CADENCE_THRESHOLD_HIGH = 175; // Ab 175 Schritten pro Minute 
-    private const SPRINT_CADENCE_THRESHOLD_LOW = 160; // Unter 160 wird zurückgesetzt
+    private const MIN_SPRINT_DURATION_SECS = 2.0; // Mindestens 2 Sekunden Vollgas
+    private const MIN_SPEED_KMH = 12.0; // Absolute Mindestgeschwindigkeit für einen Sprint
+    private const SPRINT_MULTIPLIER = 1.6; //  CurrentSpeed muss Sprint_MULTIPLIER mal höher sein als der Moving Average der letzten 30 Sekunden, um als Sprint zu gelten
+    private const SPRINT_CANCEL_FACTOR = 1.1; // Wenn die Geschwindigkeit unter 130% des Moving Average fällt, wird der Sprint abgebrochen
+    // --- Variablen für den gleitenden Durchschnitt ---
+    private const SPEED_BUFFER_SIZE = 30; // 30 Sekunden Historie
+    private var _speedBuffer = new [SPEED_BUFFER_SIZE];
+    private var _speedBufferIndex = 0;
+    private var _speedBufferCount = 0;
+    private var _movingAvgSpeed = 0.0;
 
     // Variablen für FIT-Felder
     var fieldScoreA = null;
@@ -331,7 +338,7 @@ class SoccerModel {
             // HIT berechnen
             processHiMinutes(tTime, currentHR);
             // Sprints berechnen
-            processSprintLogic(currentCadence);
+            processSprintLogic(currentSpeedKmh);
             
         }   
     }
@@ -363,27 +370,58 @@ class SoccerModel {
         _lastHiMinTimerTime = timerTime;
     }
 
-    // --- Funktion für Sprints ---
-    function processSprintLogic(cadence ) as Void {
-        // Wenn die Schrittfrequenz über dem oberen Schwellenwert liegt, könnte ein Sprint beginnen oder andauern
-        if (cadence >= SPRINT_CADENCE_THRESHOLD_HIGH) {
-            // Sprint-Dauer hochzählen
+// --- Funktion für dynamische Sprints (mit Moving Average) ---
+    function processSprintLogic(speedKmh) as Void {
+        
+        // Zuerst den Ringpuffer aktualisieren
+        var currentMovingAvg = updateMovingAverage(speedKmh);
+        
+        // DYNAMISCHE BEDINGUNG: 
+        // 1. Absolute Mindestgeschwindigkeit erreicht? (z.B. 15.0 km/h)
+        // 2. Sprint_Multiplier so schnell wie der Rhythmus der letzten 30 Sekunden?
+        var isExplosiveEnough = (speedKmh >= MIN_SPEED_KMH) && (speedKmh > (SPRINT_MULTIPLIER * currentMovingAvg));
+
+        if (isExplosiveEnough) {
             _sprintDurationSeconds++;
-            // Wenn die Sprint-Dauer den Mindestwert erreicht hat und wir noch nicht als Sprint erkannt wurden, Sprint zählen
+            
             if (_sprintDurationSeconds >= MIN_SPRINT_DURATION_SECS) {
                 if (!_isCurrentlySprint) {
                     _isCurrentlySprint = true;
-                    sprintCount++; 
+                    sprintCount++;
                     if (fieldSprintCount != null) {
                         fieldSprintCount.setData(sprintCount);
                     }
                 }
             }
-        // Wenn die Schrittfrequenz unter dem unteren Schwellenwert liegt, Sprint-Status zurücksetzen
-        } else if (cadence < SPRINT_CADENCE_THRESHOLD_LOW) {
+        } 
+        // ABBRUCH: Unter die absolute Grenze oder zurück in den Rhythmus (z.B. < 130%)
+        else if (speedKmh < MIN_SPEED_KMH || speedKmh < (SPRINT_CANCEL_FACTOR * currentMovingAvg)) {
             _isCurrentlySprint = false;
-            _sprintDurationSeconds = 0; 
+            _sprintDurationSeconds = 0;
         }
+    }
+
+    // Berechnet den gleitenden Durchschnitt der Geschwindigkeit
+    private function updateMovingAverage(currentSpeedKmh) {
+        // Neuen Wert in den Puffer schreiben
+        _speedBuffer[_speedBufferIndex] = currentSpeedKmh;
+        
+        // Index weiterrücken (springt auf 0 zurück, wenn das Ende erreicht ist)
+        _speedBufferIndex = (_speedBufferIndex + 1) % SPEED_BUFFER_SIZE;
+        
+        // Zähler erhöhen, bis der Puffer einmal voll ist
+        if (_speedBufferCount < SPEED_BUFFER_SIZE) {
+            _speedBufferCount++;
+        }
+        
+        // Aktuellen Durchschnitt berechnen
+        var sum = 0.0;
+        for (var i = 0; i < _speedBufferCount; i++) {
+            sum += _speedBuffer[i];
+        }
+        
+        _movingAvgSpeed = sum / _speedBufferCount;
+        return _movingAvgSpeed;
     }
 
     // Funktion ermittelt die Farbe anhand des aktuellen Pulses
