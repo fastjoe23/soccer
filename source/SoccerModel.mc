@@ -337,8 +337,10 @@ class SoccerModel {
             
             // HIT berechnen
             processHiMinutes(tTime, currentHR);
-            // Sprints berechnen
+            // Sprints berechnen (nur outdoor)
+            if (!isIndoor) {    
             processSprintLogic(currentSpeedKmh);
+            }
             
         }   
     }

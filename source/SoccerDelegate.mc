@@ -155,7 +155,17 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     function onNextPage() {
         _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
         _timerB.stop();
-        _model.currentPage = (_model.currentPage + 1) % _model.maxPages;
+
+        var nextPage = (_model.currentPage + 1) % _model.maxPages;
+    
+        // Wenn wir Indoor sind und die nächste Seite die Performance-Seite (1) wäre:
+        // Springe direkt weiter zur nächsten Seite!
+        if (_model.isIndoor && nextPage == SoccerModel.PAGE_PERFORMANCE) {
+            nextPage = (nextPage + 1) % _model.maxPages;
+        }
+        
+        _model.currentPage = nextPage;
+        
         WatchUi.requestUpdate();
         return true;
     }
@@ -163,7 +173,15 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     function onPreviousPage() {
         _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
         _timerB.stop();
-        _model.currentPage = (_model.currentPage - 1 + _model.maxPages) % _model.maxPages;
+        var prevPage = (_model.currentPage - 1 + _model.maxPages) % _model.maxPages;
+    
+        // Dynamisches Überspringen rückwärts: Wenn Indoor und die vorherige Seite die Performance-Seite ist,
+        // gehen wir einfach noch einen Schritt weiter rückwärts (-1)
+        if (_model.isIndoor && prevPage == SoccerModel.PAGE_PERFORMANCE) {
+            prevPage = (prevPage - 1 + _model.maxPages) % _model.maxPages;
+        }
+        
+        _model.currentPage = prevPage;
         WatchUi.requestUpdate();
         return true;
     }
