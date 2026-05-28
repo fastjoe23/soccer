@@ -20,7 +20,7 @@
     <string id="ScoreALabel">Tore Team A</string>
     <string id="ScoreBLabel">Tore Team B</string>
     <string id="ScoreUnit">Tore</string>
-    <string id="HiMinLabel">HI-Minuten (Zone 5)</string>
+    <string id="HiMinLabel">HIT-Minuten</string>
     <string id="HiMinUnit">Min</string>
     <string id="SprintLabel">Sprints</string>
     <string id="SprintUnit">Anz.</string>

@@ -21,7 +21,7 @@
     <string id="ScoreALabel">Score Team A</string>
     <string id="ScoreBLabel">Score Team B</string>
     <string id="ScoreUnit">Goals</string>
-    <string id="HiMinLabel">HI-Minutes (Zone 5)</string>
+    <string id="HiMinLabel">HIT-Minutes</string>
     <string id="HiMinUnit">Min</string>
     <string id="SprintLabel">Sprints</string>
     <string id="SprintUnit">ct</string>
