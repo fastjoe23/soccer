@@ -45,16 +45,16 @@ class SoccerModel {
     var currentHR = 0; // Aktuelle Herzfrequenz
     var distanceKm = 0.0; // Zurückgelegte Distanz in Kilometern
     var currentSpeedKmh = 0.0; // Aktuelle Geschwindigkeit in km/h
-    var avgSpeedKmh = 0.0; // Durchschnittsgeschwindigkeit in km/h
+    private var avgSpeedKmh = 0.0; // Durchschnittsgeschwindigkeit in km/h
     var calories = 0; // Kalorienverbrauch
-    var hiTimeAccumulatorMs = 0; // Sammelt die Millisekunden im roten Bereich
+    private var hiTimeAccumulatorMs = 0; // Sammelt die Millisekunden im roten Bereich
     var hiMinutes = 0;           // Die vollen, erreichten Minuten
-    var _lastHiMinTimerTime = 0;      // Um das Delta zu berechnen
+    private var _lastHiMinTimerTime = 0;      // Um das Delta zu berechnen
     var activityTimeStr = "00:00";
     // --- Variablen für Sprint-Tracking ---
-    var currentCadence = 0; // Aktuelle Schrittfrequenz
+    private var currentCadence = 0; // Aktuelle Schrittfrequenz
     var sprintCount = 0; // Anzahl der erkannten Sprints
-    var fieldSprintCount = null;
+    private var fieldSprintCount = null;
     
     // Interne Zustände für den Zeitfenster-Filter
     private var _isCurrentlySprint = false;
@@ -73,17 +73,17 @@ class SoccerModel {
     private var _movingAvgSpeed = 0.0;
 
     // Variablen für FIT-Felder
-    var fieldScoreA = null;
-    var fieldScoreB = null;
-    var fieldHiMinutes = null;
-    var fieldCadence = null;
+    private var fieldScoreA = null;
+    private var fieldScoreB = null;
+    private var fieldHiMinutes = null;
+    private var fieldCadence = null;
     private var fieldLapScoreA = null;
     private var fieldLapScoreB = null;
     
     // Speichert das Array mit den Schwellenwerten für die Herzfrequenzzonen
-    var hrZones = [90, 110, 130, 150, 170, 190];
+    private var hrZones = [90, 110, 130, 150, 170, 190];
 
-    var session = null;
+    private var session = null;
 
     function initialize() {
         // Zonen des Nutzers für allgemeinen Sport abfragen. 
