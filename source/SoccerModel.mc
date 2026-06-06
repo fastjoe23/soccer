@@ -45,7 +45,6 @@ class SoccerModel {
     var currentHR = 0; // Aktuelle Herzfrequenz
     var distanceKm = 0.0; // Zurückgelegte Distanz in Kilometern
     var currentSpeedKmh = 0.0; // Aktuelle Geschwindigkeit in km/h
-    private var avgSpeedKmh = 0.0; // Durchschnittsgeschwindigkeit in km/h
     var calories = 0; // Kalorienverbrauch
     private var hiTimeAccumulatorMs = 0; // Sammelt die Millisekunden im roten Bereich
     var hiMinutes = 0;           // Die vollen, erreichten Minuten
@@ -67,7 +66,7 @@ class SoccerModel {
     private const SPRINT_CANCEL_FACTOR = 1.1; // Wenn die Geschwindigkeit unter 130% des Moving Average fällt, wird der Sprint abgebrochen
     // --- Variablen für den gleitenden Durchschnitt ---
     private const SPEED_BUFFER_SIZE = 30; // 30 Sekunden Historie
-    private var _speedBuffer = new [SPEED_BUFFER_SIZE];
+    private var _speedBuffer;
     private var _speedBufferSum = 0.0;
     private var _speedBufferIndex = 0;
     private var _movingAvgSpeed = 0.0;
@@ -81,21 +80,31 @@ class SoccerModel {
     private var fieldLapScoreB = null;
     
     // Speichert das Array mit den Schwellenwerten für die Herzfrequenzzonen
-    private var hrZones = [90, 110, 130, 150, 170, 190];
+    private var hrZones;
 
     private var session = null;
 
     function initialize() {
         // Zonen des Nutzers für allgemeinen Sport abfragen. 
         // Das Array enthält 6 Werte (Index 0 = Ruhepuls/Start Z1, Index 5 = Max HR)
+        hrZones = [90, 110, 130, 150, 170, 190]; // Default-Werte
         if (Toybox has :UserProfile) {
-            hrZones = UserProfile.getHeartRateZones(UserProfile.HR_ZONE_SPORT_GENERIC);
+            var zones = UserProfile.getHeartRateZones(UserProfile.HR_ZONE_SPORT_GENERIC);
+            if (zones != null) {
+                hrZones = zones;
+            }
         }
 
-        //Schalter Indoor/Outdoor aus Properties holen
-        isIndoor = Application.Properties.getValue("is_indoor");
+        // Schalter Indoor/Outdoor aus Properties holen (sicher casten)
+        var isIndoorValue = Application.Properties.getValue("is_indoor");
+        if (isIndoorValue != null) {
+            isIndoor = isIndoorValue == true; // Sicherer Cast zu Boolean
+        } else {
+            isIndoor = false; // Fallback auf Outdoor
+        }
 
-        // SpeedPuffer mit Nullen initialisieren ---
+        // SpeedPuffer initialisieren
+        _speedBuffer = new [SPEED_BUFFER_SIZE];
         for (var i = 0; i < SPEED_BUFFER_SIZE; i++) {
             _speedBuffer[i] = 0.0;
         }
@@ -104,93 +113,103 @@ class SoccerModel {
     // Die Schaltzentrale für die Aufnahme
     function startSession() {
         if (session == null) {
-            
-
-
-            //  GPS-Chip an/aus basierend auf der Einstellung
-            if (isIndoor) {
-                // GPS komplett abschalten (indoor oft kein GPS-Signal, spart Akku)
-                Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
-            } else {
-                // GPS aktivieren
-                Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
-            }
-            // Neue Aktivitätssession erstellen 
-            // Name abhaengig von indoor/outdoor
-            var sessionName = isIndoor ? WatchUi.loadResource($.Rez.Strings.SessionNameIndoor) : WatchUi.loadResource($.Rez.Strings.SessionNameOutdoor);
-            session = ActivityRecording.createSession({
-                :name => sessionName,
-                :sport => Activity.SPORT_SOCCER,
-                :subSport => Activity.SUB_SPORT_MATCH
-            });
-
-
-
-            // FIT-Felder initialisieren (ID muss mit der XML übereinstimmen!)
-            // MESG_TYPE_SESSION bedeutet: Das ist ein Wert für das Endergebnis.
-            var labelA = WatchUi.loadResource($.Rez.Strings.ScoreALabel);
-            var labelB = WatchUi.loadResource($.Rez.Strings.ScoreBLabel);
-            var labelHi = WatchUi.loadResource($.Rez.Strings.HiMinLabel);
-            var unitScore = WatchUi.loadResource($.Rez.Strings.ScoreUnit);
-            var unitMin = WatchUi.loadResource($.Rez.Strings.HiMinUnit);
-            var labelSprint =  WatchUi.loadResource($.Rez.Strings.SprintLabel);
-            var unitSprint = WatchUi.loadResource($.Rez.Strings.SprintUnit);
-            var labelCadence = WatchUi.loadResource($.Rez.Strings.CadenceLabel);
-            var unitCadence = WatchUi.loadResource($.Rez.Strings.CadenceUnit);
-
-            // --- Score-Felder erstellen ---
-            fieldScoreA = session.createField(labelA, 0, FitContributor.DATA_TYPE_UINT8, {
-                :mesgType => FitContributor.MESG_TYPE_SESSION,
-                :units => unitScore
-            });
-            
-            fieldScoreB = session.createField(labelB, 1, FitContributor.DATA_TYPE_UINT8, {
-                :mesgType => FitContributor.MESG_TYPE_SESSION,
-                :units => unitScore
-            });
-            // --- High-Intensity-Minuten-Feld erstellen ---
-            fieldHiMinutes = session.createField(labelHi, 2, FitContributor.DATA_TYPE_UINT16, {
-            :mesgType => FitContributor.MESG_TYPE_SESSION,
-            :units => unitMin
-            });
-
-            // --- Sprint-Feld erstellen --- 
-            fieldSprintCount = session.createField(labelSprint, 3, FitContributor.DATA_TYPE_UINT8, {
-                :mesgType => FitContributor.MESG_TYPE_SESSION,
-                :units => unitSprint
-            });  
-
-            // ---Feld für die Schrittfrequenz (Graph über Zeit) ---
-            // ID 4, Typ UINT8 reicht völlig aus (0-255 Schritte/Min)
-            fieldCadence = session.createField(labelCadence, 4, FitContributor.DATA_TYPE_UINT8, {
-                :mesgType => FitContributor.MESG_TYPE_RECORD,
-                :units => unitCadence // Steps per minute
-            });
-
-            // --- Runden-Felder für den Ticker erstellen ---
-            fieldLapScoreA = session.createField("lapScoreA", 5, FitContributor.DATA_TYPE_UINT8, {
-                :mesgType => FitContributor.MESG_TYPE_LAP,
-                :units => unitScore
-            });
-            fieldLapScoreB = session.createField("lapScoreB", 6, FitContributor.DATA_TYPE_UINT8, {
-                :mesgType => FitContributor.MESG_TYPE_LAP,
-                :units => unitScore
-            });  
-            
-            // Initiale Werte in die FIT-Datei schreiben
-            fieldScoreA.setData(scoreA);
-            fieldScoreB.setData(scoreB);
-            fieldHiMinutes.setData(0);
-            fieldSprintCount.setData(0);
-            fieldCadence.setData(0);
+            createSession();
         }
         
-        if (!session.isRecording()) {
+        // Session nur starten, wenn sie existiert und nicht läuft
+        if (session != null && !session.isRecording()) {
             session.start();
-                        // Herzfrequenz-Sensor aktivieren (benötigt für die Herzfrequenzzonen und die Anzeige)
+            // Herzfrequenz-Sensor aktivieren
             Sensor.setEnabledSensors([Sensor.SENSOR_HEARTRATE]);
             Sensor.enableSensorEvents(method(:onSensor));
         }
+    }
+    
+    // Hilfsfunktion: Erstellt die ActivityRecording Session und initialisiert FIT-Felder
+    private function createSession() as Void {
+        // GPS-Chip an/aus basierend auf der Einstellung
+        if (isIndoor) {
+            Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
+        } else {
+            Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
+        }
+        
+        // Neue Aktivitätssession erstellen
+        var sessionName = isIndoor ? WatchUi.loadResource($.Rez.Strings.SessionNameIndoor) : WatchUi.loadResource($.Rez.Strings.SessionNameOutdoor);
+        session = ActivityRecording.createSession({
+            :name => sessionName,
+            :sport => Activity.SPORT_SOCCER,
+            :subSport => Activity.SUB_SPORT_MATCH
+        });
+        
+        // Prüfen, ob Session erfolgreich erstellt wurde
+        if (session == null) {
+            return;
+        }
+        
+        initializeFitFields();
+    }
+    
+    // Hilfsfunktion: Erstellt alle FIT-Felder mit Null-Checks
+    private function initializeFitFields() as Void {
+        if (session == null) { return; }
+        
+        var labelA = WatchUi.loadResource($.Rez.Strings.ScoreALabel);
+        var labelB = WatchUi.loadResource($.Rez.Strings.ScoreBLabel);
+        var labelHi = WatchUi.loadResource($.Rez.Strings.HiMinLabel);
+        var unitScore = WatchUi.loadResource($.Rez.Strings.ScoreUnit);
+        var unitMin = WatchUi.loadResource($.Rez.Strings.HiMinUnit);
+        var labelSprint = WatchUi.loadResource($.Rez.Strings.SprintLabel);
+        var unitSprint = WatchUi.loadResource($.Rez.Strings.SprintUnit);
+        var labelCadence = WatchUi.loadResource($.Rez.Strings.CadenceLabel);
+        var unitCadence = WatchUi.loadResource($.Rez.Strings.CadenceUnit);
+
+        // Score-Felder
+        fieldScoreA = session.createField(labelA, 0, FitContributor.DATA_TYPE_UINT8, {
+            :mesgType => FitContributor.MESG_TYPE_SESSION,
+            :units => unitScore
+        });
+        
+        fieldScoreB = session.createField(labelB, 1, FitContributor.DATA_TYPE_UINT8, {
+            :mesgType => FitContributor.MESG_TYPE_SESSION,
+            :units => unitScore
+        });
+        
+        // HIT-Minuten-Feld
+        fieldHiMinutes = session.createField(labelHi, 2, FitContributor.DATA_TYPE_UINT16, {
+            :mesgType => FitContributor.MESG_TYPE_SESSION,
+            :units => unitMin
+        });
+
+        // Sprint-Feld
+        fieldSprintCount = session.createField(labelSprint, 3, FitContributor.DATA_TYPE_UINT8, {
+            :mesgType => FitContributor.MESG_TYPE_SESSION,
+            :units => unitSprint
+        });
+
+        // Schrittfrequenz-Feld
+        fieldCadence = session.createField(labelCadence, 4, FitContributor.DATA_TYPE_UINT8, {
+            :mesgType => FitContributor.MESG_TYPE_RECORD,
+            :units => unitCadence
+        });
+
+        // Runden-Felder
+        fieldLapScoreA = session.createField("lapScoreA", 5, FitContributor.DATA_TYPE_UINT8, {
+            :mesgType => FitContributor.MESG_TYPE_LAP,
+            :units => unitScore
+        });
+        
+        fieldLapScoreB = session.createField("lapScoreB", 6, FitContributor.DATA_TYPE_UINT8, {
+            :mesgType => FitContributor.MESG_TYPE_LAP,
+            :units => unitScore
+        });
+        
+        // Initiale Werte in FIT schreiben (mit Null-Checks)
+        if (fieldScoreA != null) { fieldScoreA.setData(scoreA); }
+        if (fieldScoreB != null) { fieldScoreB.setData(scoreB); }
+        if (fieldHiMinutes != null) { fieldHiMinutes.setData(0); }
+        if (fieldSprintCount != null) { fieldSprintCount.setData(0); }
+        if (fieldCadence != null) { fieldCadence.setData(0); }
     }
 
 
@@ -267,6 +286,10 @@ class SoccerModel {
 
     function saveSession() {
         if (session != null) {
+            // Session erst pausieren, dann speichern
+            if (session.isRecording()) {
+                session.stop();
+            }
             session.save();
             session = null; // Session aufräumen
             cleanupResources(); // Sensoren und GPS abschalten
@@ -275,6 +298,10 @@ class SoccerModel {
 
     function discardSession() {
         if (session != null) {
+            // Session erst pausieren, dann verwerfen
+            if (session.isRecording()) {
+                session.stop();
+            }
             session.discard();
             session = null; // Session aufräumen
             cleanupResources(); // Sensoren und GPS abschalten
@@ -283,11 +310,12 @@ class SoccerModel {
 
     // Hilfsfunktion, um Sensoren und GPS nach dem Spiel komplett schlafen zu legen
     private function cleanupResources() as Void {
-        // 1. GPS ausschalten (deaktiviert die Ortsbestimmung komplett)
+        // GPS ausschalten (deaktiviert die Ortsbestimmung komplett)
         Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
         
-        // 2. Sensor-Events abmelden (Callback auf null setzen löscht das Abo)
+        // Sensor-Events abmelden (Callback auf null setzen löscht das Abo)
         Sensor.enableSensorEvents(null);
+        Sensor.setEnabledSensors([]);
     }
 
     // Hilfsfunktion für die View (um z.B. ein "REC" Icon anzuzeigen)
@@ -329,12 +357,6 @@ class SoccerModel {
             } else {
                 currentSpeedKmh = 0.0;
             }
-            // Durchschnittsgeschwindigkeit in km/h
-            if (info.averageSpeed != null) {
-                avgSpeedKmh = info.averageSpeed * 3.6; // m/s in km/h umrechnen
-            } else {
-                avgSpeedKmh = 0.0;
-            }
             // Kalorienverbrauch
             if (info.calories != null) {
                 calories = info.calories;
@@ -364,13 +386,15 @@ class SoccerModel {
     // --- Funktion für HIT-Minuten ---
     function processHiMinutes(timerTime , hr ) as Void {
         if (timerTime == null) { return; }
+        if (hrZones == null || hrZones.size() < 4) { return; } // Keine Zonen oder unvollständig
+        
         // 1. Delta-Zeit seit dem letzten Aufruf berechnen
         var deltaMs = timerTime - _lastHiMinTimerTime;
 
         // Schutz gegen negative Werte (z.B. beim Zurücksetzen der Session)
         if (deltaMs > 0 && deltaMs < 5000) {
-            // 2. Sind wir in der roten oder orangenen Zone? (hrZones[3] = Grenze zu Zone 4) 
-            if (hr > 0 && hrZones != null && hr >= hrZones[3]) {
+            // 2. Sind wir in der roten oder orangenen Zone? (hrZones[3] = Grenze zu Zone 4)
+            if (hr > 0 && hr >= hrZones[3]) {
                 // 3. Wenn ja, Delta-Zeit zum Akkumulator hinzufügen
                 hiTimeAccumulatorMs += deltaMs;
                 // 4. Vollendete Minuten berechnen
@@ -442,7 +466,10 @@ class SoccerModel {
 
     // Funktion ermittelt die Farbe anhand des aktuellen Pulses
     function getHrColor() {
-        if (currentHR == 0 || hrZones == null) {
+        if (hrZones == null || hrZones.size() < 5) {
+            return Graphics.COLOR_WHITE; // Keine oder unvollständige Zonen
+        }
+        if (currentHR == 0) {
             return Graphics.COLOR_WHITE; // Kein Puls = Weiß
         }
         
@@ -452,6 +479,6 @@ class SoccerModel {
         if (currentHR < hrZones[3]) { return Graphics.COLOR_GREEN; }   // Zone 3
         if (currentHR < hrZones[4]) { return Graphics.COLOR_ORANGE; }  // Zone 4
         
-        return Graphics.COLOR_RED; // Zone 5 (Alles über der Grenze von Zone 4)
+        return Graphics.COLOR_RED; // Zone 5
     }
 }
