@@ -66,6 +66,10 @@ class SoccerView extends WatchUi.View {
     }
 
     function onUpdate(dc) {
+        // Keine Updates, kein Zeichnen wenn wir in Pause sind
+        if (_model.isPaused()) {
+            return; 
+        }
         // 1. ECHTE DATEN VOM SENSOR HOLEN
         _model.updateMetrics();
 

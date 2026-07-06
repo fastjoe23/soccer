@@ -87,6 +87,9 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     private function openPauseMenu() {
         _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
         _timerB.stop();
+        // Session pausieren 
+        _model.pauseSession();
+
         // Strings aus Resourcen laden
         var title = WatchUi.loadResource($.Rez.Strings.MenuPauseTitle);
         var continueLabel = WatchUi.loadResource($.Rez.Strings.MenuResume);

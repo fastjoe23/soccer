@@ -326,6 +326,11 @@ class SoccerModel {
         return false;
     }
 
+    // Hilfsfunktion: Prüft, ob wir in echten Pause sind
+    function isPaused() {
+        return (session != null && !session.isRecording());
+    }
+
     // Setzt einen Runden-Marker (Lap) in der FIT-Datei
     function addLap() {
         if (session != null && session.isRecording()) {
@@ -372,14 +377,14 @@ class SoccerModel {
                     fieldCadence.setData(currentCadence);
                
             }          
-            
-            // HIT berechnen
-            processHiMinutes(tTime, currentHR);
-            // Sprints berechnen (nur outdoor)
-            if (!isIndoor) {    
-            processSprintLogic(currentSpeedKmh);
-            }
-            
+            if (isRecording()) {
+                // HIT-Minuten berechnen
+                processHiMinutes(tTime, currentHR);
+                // Sprints berechnen (nur outdoor)
+                if (!isIndoor) {
+                    processSprintLogic(currentSpeedKmh);
+                }
+            }            
         }   
     }
 
