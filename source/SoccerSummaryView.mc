@@ -41,7 +41,7 @@ class SoccerSummaryView extends WatchUi.View {
 
         // Titel
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        var title = WatchUi.loadResource($.Rez.Strings.SummaryTitle);
+        var title = (WatchUi.loadResource($.Rez.Strings.SummaryTitle) as String);
         dc.drawText(cx, height * 0.15, Graphics.FONT_SMALL, title, Graphics.TEXT_JUSTIFY_CENTER);
 
 
@@ -50,9 +50,26 @@ class SoccerSummaryView extends WatchUi.View {
         var finalScore = _model.scoreA.toString() + " : " + _model.scoreB.toString();
         dc.drawText(cx, cy - 10, Graphics.FONT_NUMBER_HOT, finalScore, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // Statistiken darunter
+        // Statistiken darunter (relativ zur Bildschirmhöhe, damit es auf allen Uhren passt)
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, cy + 50, Graphics.FONT_TINY, _model.distanceKm.format("%.2f") + " km  |  " + _model.activityTimeStr, Graphics.TEXT_JUSTIFY_CENTER);
+        var line1 = _model.activityTimeStr;
+        if (!_model.isIndoor) {
+            line1 = _model.distanceKm.format("%.2f") + " km  |  " + line1;
+        }
+        dc.drawText(cx, height * 0.62, Graphics.FONT_TINY, line1, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // HIT-Minuten und (nur Outdoor) Sprints
+        var line2 = (WatchUi.loadResource($.Rez.Strings.ViewHIT) as String) + " " + _model.hiMinutes.toString();
+        if (!_model.isIndoor) {
+            line2 += "  |  " + (WatchUi.loadResource($.Rez.Strings.ViewSprint) as String) + " " + _model.sprintCount.toString();
+        }
+        dc.drawText(cx, height * 0.72, Graphics.FONT_XTINY, line2, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // Torwartwechsel (nur wenn aktiviert oder welche stattgefunden haben)
+        if (_model.gkIntervalMin > 0 || _model.gkChangeCount > 0) {
+            var line3 = (WatchUi.loadResource($.Rez.Strings.SummaryGk) as String) + " " + _model.gkChangeCount.toString();
+            dc.drawText(cx, height * 0.80, Graphics.FONT_XTINY, line3, Graphics.TEXT_JUSTIFY_CENTER);
+        }
 
         // Hinweis zum Beenden ganz unten
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);

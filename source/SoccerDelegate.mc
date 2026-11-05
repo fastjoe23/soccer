@@ -18,6 +18,7 @@
  */
 
 import Toybox.WatchUi;
+import Toybox.Lang;
 import Toybox.System;
 import Toybox.Timer;
 
@@ -27,24 +28,103 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     
     // Timer und Zähler für Team A (START-Taste)
     private var _timerA as Timer.Timer;
-    private var _clickCountA = 0;
+    private var _clickCountA as Number = 0;
     
     // Timer und Zähler für Team B (BACK-Taste)
     private var _timerB as Timer.Timer;
-    private var _clickCountB = 0;
+    private var _clickCountB as Number = 0;
     
     // Das Zeitfenster, in dem der zweite Klick passieren muss
     private const DOUBLE_CLICK_DELAY = 350;
+
+    // --- Torwartwechsel: DOWN-Taste lange gedrückt halten (nur Scoreboard) ---
+    private var _holdTimer as Timer.Timer;
+    private var _downHeld as Boolean = false;      // DOWN wird gerade auf dem Scoreboard gehalten
+    private var _holdFired as Boolean = false;     // Langer Druck wurde bereits ausgelöst
+    private const GK_HOLD_DELAY = 800;  // ms bis der lange Druck zählt
 
     public function initialize(model as SoccerModel) {
         BehaviorDelegate.initialize();
         _model = model;
         _timerA = new Timer.Timer();
         _timerB = new Timer.Timer();
+        _holdTimer = new Timer.Timer();
+    }
+
+    // Taste gedrückt: Auf dem Scoreboard startet DOWN den Halte-Timer.
+    // Der Seitenwechsel wird bis zum Loslassen zurückgestellt.
+    function onKeyPressed(keyEvent as WatchUi.KeyEvent) as Boolean {
+        if (keyEvent.getKey() == WatchUi.KEY_DOWN && isGkHoldAvailable()) {
+            _downHeld = true;
+            _holdFired = false;
+            _holdTimer.start(method(:onGkHoldTimer), GK_HOLD_DELAY, false);
+            return true;
+        }
+        return false;
+    }
+
+    // Verhindert, dass DOWN beim Drücken sofort die Seite wechselt, solange wir halten
+    function onKey(keyEvent as WatchUi.KeyEvent) as Boolean {
+        if (keyEvent.getKey() == WatchUi.KEY_DOWN && _downHeld) {
+            return true;
+        }
+        return BehaviorDelegate.onKey(keyEvent);
+    }
+
+    // Taste losgelassen: kurzer Druck -> normaler Seitenwechsel, langer Druck -> nichts weiter
+    function onKeyReleased(keyEvent as WatchUi.KeyEvent) as Boolean {
+        if (keyEvent.getKey() == WatchUi.KEY_DOWN && _downHeld) {
+            _holdTimer.stop();
+            _downHeld = false;
+            if (!_holdFired) {
+                changePage(1);
+            }
+            _holdFired = false;
+            return true;
+        }
+        return false;
+    }
+
+    // Wenn ein Einzelklick noch auf das Doppelklick-Fenster wartet, wird er sofort
+    // ausgeführt. Vorher wurde er beim Seitenwechsel verworfen -> Tor ging verloren.
+    private function flushPendingClicks() as Void {
+        _timerA.stop();
+        _timerB.stop();
+        if (_clickCountA == 1) {
+            executeSingleClickA();
+        }
+        if (_clickCountB == 1) {
+            executeSingleClickB();
+        }
+        _clickCountA = 0;
+        _clickCountB = 0;
+    }
+
+    // Halte-Timer abgelaufen -> Torwartwechsel bestätigen
+    function onGkHoldTimer() as Void {
+        if (!_downHeld) { return; }
+        _holdFired = true;
+        _model.confirmGoalkeeperChange(_model.getTimerTime());
+        vibrateGkConfirm();
+        WatchUi.requestUpdate();
+    }
+
+    // Langer Druck nur auf dem Scoreboard, während der Aufnahme und wenn der Wechsel aktiv ist
+    private function isGkHoldAvailable() as Boolean {
+        return _model.currentPage == SoccerModel.PAGE_SCOREBOARD
+            && _model.isRecording()
+            && _model.gkIntervalMin > 0;
+    }
+
+    // Eine lange Vibration als Bestätigung für den manuellen Wechsel
+    function vibrateGkConfirm() as Void {
+        if (Toybox has :Attention) {
+            Toybox.Attention.vibrate([new Toybox.Attention.VibeProfile(100, 500)]);
+        }
     }
 
 // --- RECHTS OBEN: START-TASTE (Team A) ---
-    function onSelect() {
+    function onSelect() as Boolean {
         if (_model.isRecording() && _model.currentPage == SoccerModel.PAGE_SCOREBOARD) {
             _clickCountA++;
             
@@ -84,17 +164,16 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     }
 
     // Pause-Menü öffnen
-    private function openPauseMenu() {
-        _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
-        _timerB.stop();
+    private function openPauseMenu() as Void {
+        flushPendingClicks(); // Wartende Einzelklicks sofort als Tor zählen statt sie zu verwerfen
         // Session pausieren 
         _model.pauseSession();
 
         // Strings aus Resourcen laden
-        var title = WatchUi.loadResource($.Rez.Strings.MenuPauseTitle);
-        var continueLabel = WatchUi.loadResource($.Rez.Strings.MenuResume);
-        var saveLabel = WatchUi.loadResource($.Rez.Strings.MenuSave);
-        var discardLabel = WatchUi.loadResource($.Rez.Strings.MenuDiscard);
+        var title = (WatchUi.loadResource($.Rez.Strings.MenuPauseTitle) as String);
+        var continueLabel = (WatchUi.loadResource($.Rez.Strings.MenuResume) as String);
+        var saveLabel = (WatchUi.loadResource($.Rez.Strings.MenuSave) as String);
+        var discardLabel = (WatchUi.loadResource($.Rez.Strings.MenuDiscard) as String);
         var menu = new WatchUi.Menu2({:title=>title});
         menu.addItem(new WatchUi.MenuItem(continueLabel, null, :resume, null));
         menu.addItem(new WatchUi.MenuItem(saveLabel, null, :save, null));
@@ -104,8 +183,9 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     }
 
     // --- RECHTS UNTEN: BACK-TASTE (Team B) ---
-    function onBack() {
-        if (_model.currentPage == SoccerModel.PAGE_SCOREBOARD) {
+    function onBack() as Boolean {
+        // Tore nur während einer laufenden Aufnahme zählen (wie bei der START-Taste)
+        if (_model.isRecording() && _model.currentPage == SoccerModel.PAGE_SCOREBOARD) {
             _clickCountB++;
             
             if (_clickCountB == 1) {
@@ -137,14 +217,14 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
 
 
     // Standard-Vibration (Einmal kurz für "+1")
-    function vibrate() {
+    function vibrate() as Void {
         if (Toybox has :Attention) {
             Toybox.Attention.vibrate([new Toybox.Attention.VibeProfile(50, 150)]);
         }
     }
 
     // Doppel-Vibration (Zweimal kurz für "-1")
-    function vibrateDouble() {
+    function vibrateDouble() as Void {
         if (Toybox has :Attention) {
             Toybox.Attention.vibrate([
                 new Toybox.Attention.VibeProfile(50, 100),
@@ -155,11 +235,20 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     }
 
     // --- SEITENWECHSEL (Standard-Verhalten) ---
-    function onNextPage() {
-        _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
-        _timerB.stop();
+    function onNextPage() as Boolean {
+        // DOWN wird gerade gehalten -> Seitenwechsel erst beim Loslassen (siehe onKeyReleased)
+        if (_downHeld) {
+            return true;
+        }
+        changePage(1);
+        return true;
+    }
 
-        var nextPage = (_model.currentPage + 1) % _model.maxPages;
+    // Gemeinsame Logik für den Seitenwechsel vorwärts
+    private function changePage(direction as Number) as Void {
+        flushPendingClicks(); // Wartende Einzelklicks sofort als Tor zählen statt sie zu verwerfen
+
+        var nextPage = (_model.currentPage + direction) % _model.maxPages;
     
         // Wenn wir Indoor sind und die nächste Seite die Performance-Seite (1) wäre:
         // Springe direkt weiter zur nächsten Seite!
@@ -170,12 +259,10 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
         _model.currentPage = nextPage;
         
         WatchUi.requestUpdate();
-        return true;
     }
 
-    function onPreviousPage() {
-        _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
-        _timerB.stop();
+    function onPreviousPage() as Boolean {
+        flushPendingClicks(); // Wartende Einzelklicks sofort als Tor zählen statt sie zu verwerfen
         var prevPage = (_model.currentPage - 1 + _model.maxPages) % _model.maxPages;
     
         // Dynamisches Überspringen rückwärts: Wenn Indoor und die vorherige Seite die Performance-Seite ist,
@@ -190,19 +277,18 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
     }
 
     // Menu: Wird bei langem Druck auf die UP-Taste aufgerufen
-    function onMenu() {
-        _timerA.stop(); // Sicherstellen, dass kein Klick mehr ausgeführt wird
-        _timerB.stop();
+    function onMenu() as Boolean {
+        flushPendingClicks(); // Wartende Einzelklicks sofort als Tor zählen statt sie zu verwerfen
         // Einstellungen nur erlauben, wenn noch nicht aufgezeichnet wird
         if (!_model.isRecording()) {
-            var settingsTitle = WatchUi.loadResource($.Rez.Strings.MenuSettingsTitle);
+            var settingsTitle = (WatchUi.loadResource($.Rez.Strings.MenuSettingsTitle) as String);
             var menu = new WatchUi.Menu2({:title=>settingsTitle});
             menu.addItem(
                 new WatchUi.ToggleMenuItem(
-                    WatchUi.loadResource($.Rez.Strings.IndoorMode), 
+                    (WatchUi.loadResource($.Rez.Strings.IndoorMode) as String), 
                     {
-                        :enabled=>WatchUi.loadResource($.Rez.Strings.IndoorEnabled), 
-                        :disabled=>WatchUi.loadResource($.Rez.Strings.IndoorDisabled)
+                        :enabled=>(WatchUi.loadResource($.Rez.Strings.IndoorEnabled) as String), 
+                        :disabled=>(WatchUi.loadResource($.Rez.Strings.IndoorDisabled) as String)
                     }, 
                     :toggle_indoor, 
                     _model.isIndoor, 
@@ -210,6 +296,16 @@ class SoccerDelegate extends WatchUi.BehaviorDelegate {
                 )
             );
             
+            // Torwartwechsel-Intervall (Auswahl durch wiederholtes Antippen)
+            menu.addItem(
+                new WatchUi.MenuItem(
+                    (WatchUi.loadResource($.Rez.Strings.GkIntervalTitle) as String),
+                    $.SoccerSettingsMenuDelegate.gkIntervalSubLabel(_model.gkIntervalMin),
+                    :gk_interval,
+                    null
+                )
+            );
+
             // Menü anzeigen und unseren neuen Delegate übergeben
             WatchUi.pushView(menu, new $.SoccerSettingsMenuDelegate(_model), WatchUi.SLIDE_UP);
         }

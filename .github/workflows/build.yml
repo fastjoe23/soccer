@@ -1,0 +1,73 @@
+# Compila la app y ejecuta los tests en cada push / pull request.
+#
+# Configuración necesaria en GitHub (Settings > Secrets and variables > Actions):
+#   Secrets:
+#     GARMIN_USERNAME  - cuenta de Garmin (para descargar SDK y definiciones de relojes)
+#     GARMIN_PASSWORD
+#   Variables:
+#     GARMIN_AGREEMENT_HASH - hash del acuerdo de licencia del SDK. Se obtiene en local con
+#                             `connect-iq-sdk-manager agreement view` tras leer el acuerdo.
+name: Build
+
+on:
+  push:
+  pull_request:
+
+env:
+  SDK_VERSION: "^9.3.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Selección representativa: pantalla grande, pequeña/antigua y AMOLED
+        device: [fenix7, fenix6, epix2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar Connect IQ SDK y dispositivos
+        env:
+          GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+        run: |
+          curl -s https://raw.githubusercontent.com/lindell/connect-iq-sdk-manager-cli/master/install.sh | sh -s -- -b "$HOME/.local/bin"
+          export PATH="$HOME/.local/bin:$PATH"
+          connect-iq-sdk-manager agreement accept --acceptance-hash="${{ vars.GARMIN_AGREEMENT_HASH }}"
+          connect-iq-sdk-manager login
+          connect-iq-sdk-manager sdk set "$SDK_VERSION"
+          connect-iq-sdk-manager device download --manifest=manifest.xml
+          echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
+
+      - name: Generar clave de desarrollador temporal
+        run: |
+          openssl genrsa -out key.pem 4096
+          openssl pkcs8 -topk8 -inform PEM -outform DER -in key.pem -out key.der -nocrypt
+
+      - name: Compilar (${{ matrix.device }})
+        run: monkeyc -f monkey.jungle -d ${{ matrix.device }} -y key.der -o bin/soccer-${{ matrix.device }}.prg -w
+
+      - name: Compilar tests (${{ matrix.device }})
+        run: monkeyc -f monkey.jungle -d ${{ matrix.device }} -y key.der -o bin/test-${{ matrix.device }}.prg -t
+
+      - name: Ejecutar tests en el simulador (${{ matrix.device }})
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb libwebkit2gtk-4.1-0 libusb-1.0-0 libsm6
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x1024x24 &
+          sleep 2
+          connectiq &
+          sleep 10
+          monkeydo bin/test-${{ matrix.device }}.prg ${{ matrix.device }} -t
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soccer-${{ matrix.device }}
+          path: bin/soccer-${{ matrix.device }}.prg

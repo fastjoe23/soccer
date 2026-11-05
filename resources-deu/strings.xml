@@ -34,4 +34,12 @@
     <string id="AwayScoreLabel">Tore Team B</string>
     <string id="HomeScoreTitle">Tore Team A über Zeit</string>
     <string id="AwayScoreTitle">Tore Team B über Zeit</string>
+    <string id="GkIntervalTitle">Torwartwechsel</string>
+    <string id="GkOff">Aus</string>
+    <string id="GkMinUnit">Min</string>
+    <string id="ViewGkChangeNow">TORWARTWECHSEL!</string>
+    <string id="RecoverPrompt">Letztes Spiel fortsetzen?</string>
+    <string id="SummaryGk">TW-Wechsel</string>
+    <string id="GkIntervalSetting">Torwartwechsel (Min, 0 = aus)</string>
+    <string id="GkChangesLabel">Torwartwechsel</string>
 </strings>
