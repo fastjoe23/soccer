@@ -54,5 +54,13 @@
                   displayInActivityLaps="true"
                   dataLabel="@Strings.AwayScoreLabel" 
                   unitLabel="@Strings.ScoreUnit" />
+
+        <fitField id="7"
+                  displayInChart="false"
+                  displayInActivitySummary="true"
+                  sortOrder="7"
+                  precision="0"
+                  dataLabel="@Strings.GkChangesLabel"
+                  unitLabel="@Strings.SprintUnit" />
     </fitContributions>
 </resources>

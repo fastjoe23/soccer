@@ -19,16 +19,17 @@
 
 import Toybox.WatchUi;
 import Toybox.System;
+import Toybox.Lang;
 
 class SaveMenuDelegate extends WatchUi.Menu2InputDelegate {
-    var _model;
+    private var _model as SoccerModel;
 
-    function initialize(model) {
+    function initialize(model as SoccerModel) {
         Menu2InputDelegate.initialize();
         _model = model;
     }
 
-    function onSelect(item) {
+    function onSelect(item as WatchUi.MenuItem) as Void {
         var id = item.getId();
         
         if (id == :resume) {

@@ -1,1 +1,8 @@
 project.manifest = manifest.xml
+
+# Strenge Typprüfung: Fehler werden schon beim Kompilieren gefunden statt auf der Uhr
+project.typecheck = 3
+
+# Compiler-Optimierung: 2 = schnelle Optimierungen, z = möglichst kleiner Code
+# (wichtig für ältere Uhren mit wenig App-Speicher)
+project.optimization = 2z

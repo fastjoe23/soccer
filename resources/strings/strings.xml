@@ -35,4 +35,12 @@
     <string id="AwayScoreLabel">Team B Goals</string>
     <string id="HomeScoreTitle">Team A Goals over Time</string>
     <string id="AwayScoreTitle">Team B Goals over Time</string>
+    <string id="GkIntervalTitle">Goalkeeper change</string>
+    <string id="GkOff">Off</string>
+    <string id="GkMinUnit">min</string>
+    <string id="ViewGkChangeNow">GK CHANGE!</string>
+    <string id="RecoverPrompt">Continue last match?</string>
+    <string id="SummaryGk">GK changes</string>
+    <string id="GkIntervalSetting">Goalkeeper change (min, 0 = off)</string>
+    <string id="GkChangesLabel">Goalkeeper changes</string>
 </strings>

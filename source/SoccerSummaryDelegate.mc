@@ -18,6 +18,7 @@
  */
 
 import Toybox.WatchUi;
+import Toybox.Lang;
 import Toybox.System;
 // Der Delegate für die Summary: Er wartet nur auf den finalen Tastendruck
 class SoccerSummaryDelegate extends WatchUi.BehaviorDelegate {
@@ -25,12 +26,12 @@ class SoccerSummaryDelegate extends WatchUi.BehaviorDelegate {
         BehaviorDelegate.initialize();
     }
 
-    function onSelect() {
+    function onSelect() as Boolean {
         System.exit(); // Beendet die App endgültig
   
     }
 
-    function onBack() {
+    function onBack() as Boolean {
         System.exit(); // Auch über Back beenden
 
     }

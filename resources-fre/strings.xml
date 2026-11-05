@@ -35,5 +35,13 @@
         <string id="AwayScoreLabel">Buts Équipe B</string>
         <string id="HomeScoreTitle">Buts Équipe A a lo largo del tiempo</string>
         <string id="AwayScoreTitle">Buts Équipe B a lo largo del tiempo</string>
+        <string id="GkIntervalTitle">Changement gardien</string>
+        <string id="GkOff">Désactivé</string>
+        <string id="GkMinUnit">min</string>
+        <string id="ViewGkChangeNow">CHANGEMENT GARDIEN!</string>
+        <string id="RecoverPrompt">Reprendre le dernier match ?</string>
+        <string id="SummaryGk">Chgts gardien</string>
+        <string id="GkIntervalSetting">Changement gardien (min, 0 = désactivé)</string>
+        <string id="GkChangesLabel">Changements de gardien</string>
     </strings>
 </resources>

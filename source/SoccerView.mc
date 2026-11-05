@@ -22,6 +22,8 @@ import Toybox.Lang;
 import Toybox.Timer;
 import Toybox.WatchUi;
 import Toybox.System;
+import Toybox.Attention;
+import Toybox.Position;
 
 class SoccerView extends WatchUi.View {
 
@@ -38,6 +40,11 @@ class SoccerView extends WatchUi.View {
     private var _speedLabel as String;
     private var _calLabel as String;
     private var _sprintLabel as String;
+    private var _gkChangeNow as String;
+
+    // Wiederherstellung eines abgebrochenen Spiels nur einmal beim App-Start anbieten
+    private var _recoveryChecked as Boolean = false;
+    private var _recoveryTimer as Timer.Timer?;
 
 
     public function initialize(model as SoccerModel) {
@@ -45,33 +52,63 @@ class SoccerView extends WatchUi.View {
         _model = model;
         _timer = new Timer.Timer();
         // Strings aus Resourcen laden
-        _goalA = WatchUi.loadResource($.Rez.Strings.ViewGoalA);
-        _goalB = WatchUi.loadResource($.Rez.Strings.ViewGoalB);
-        _scoreTitle = WatchUi.loadResource($.Rez.Strings.ViewScore);
-        _distLabel = WatchUi.loadResource($.Rez.Strings.ViewDistance);
-        _hitLabel = WatchUi.loadResource($.Rez.Strings.ViewHIT);
-        _timerLabel = WatchUi.loadResource($.Rez.Strings.ViewTimer);
-        _speedLabel = WatchUi.loadResource($.Rez.Strings.ViewSpeed);
-        _calLabel = WatchUi.loadResource($.Rez.Strings.ViewCalories);
-        _sprintLabel = WatchUi.loadResource($.Rez.Strings.ViewSprint);
+        _goalA = (WatchUi.loadResource($.Rez.Strings.ViewGoalA) as String);
+        _goalB = (WatchUi.loadResource($.Rez.Strings.ViewGoalB) as String);
+        _scoreTitle = (WatchUi.loadResource($.Rez.Strings.ViewScore) as String);
+        _distLabel = (WatchUi.loadResource($.Rez.Strings.ViewDistance) as String);
+        _hitLabel = (WatchUi.loadResource($.Rez.Strings.ViewHIT) as String);
+        _timerLabel = (WatchUi.loadResource($.Rez.Strings.ViewTimer) as String);
+        _speedLabel = (WatchUi.loadResource($.Rez.Strings.ViewSpeed) as String);
+        _calLabel = (WatchUi.loadResource($.Rez.Strings.ViewCalories) as String);
+        _sprintLabel = (WatchUi.loadResource($.Rez.Strings.ViewSprint) as String);
+        _gkChangeNow = (WatchUi.loadResource($.Rez.Strings.ViewGkChangeNow) as String);
 
     }
 
     public function onShow() as Void {
         _timer.start(method(:onTimer), 1000, true);
+
+        // Beim ersten Anzeigen prüfen, ob ein abgebrochenes Spiel fortgesetzt werden kann.
+        // Der Dialog wird über einen kurzen Timer geöffnet (pushView nicht direkt in onShow).
+        if (!_recoveryChecked) {
+            _recoveryChecked = true;
+            if (!_model.isRecording() && _model.getRecoverableState() != null) {
+                _recoveryTimer = new Timer.Timer();
+                _recoveryTimer.start(method(:showRecoveryDialog), 200, false);
+            }
+        }
+    }
+
+    // Fragt, ob der gesicherte Spielstand übernommen werden soll
+    public function showRecoveryDialog() as Void {
+        var state = _model.getRecoverableState();
+        if (state == null) { return; }
+        var prompt = WatchUi.loadResource($.Rez.Strings.RecoverPrompt) as String;
+        var score = _model.readNumber(state, "a").toString() + " : " + _model.readNumber(state, "b").toString();
+        WatchUi.pushView(
+            new WatchUi.Confirmation(prompt + " " + score),
+            new $.RecoverDelegate(_model, state),
+            WatchUi.SLIDE_IMMEDIATE
+        );
     }
 
     public function onHide() as Void {
         _timer.stop();
     }
 
-    function onUpdate(dc) {
+    function onUpdate(dc as Dc) as Void {
         // Keine Updates, kein Zeichnen wenn wir in Pause sind
         if (_model.isPaused()) {
             return; 
         }
         // 1. ECHTE DATEN VOM SENSOR HOLEN
         _model.updateMetrics();
+
+        // Torwartwechsel fällig -> lange Vibration (einmalig pro Wechsel)
+        if (_model.gkAlertPending) {
+            _model.gkAlertPending = false;
+            vibrateGkChange();
+        }
 
         // 2. ZEICHNEN
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
@@ -91,14 +128,57 @@ class SoccerView extends WatchUi.View {
             drawClockPage(dc, cx, cy);
         }
 
+        // Hinweis "Torwartwechsel" auf allen anderen Seiten einblenden
+        if (_model.isGkAlertActive() && _model.currentPage != 2) {
+            drawGkAlertBanner(dc, cx, cy);
+        }
+
         drawPageIndicator(dc, cx, dc.getHeight() - 15);
+    }
+
+    // --- Torwartwechsel: dreimal lang vibrieren ---
+    private function vibrateGkChange() as Void {
+        if (Toybox has :Attention && Attention has :vibrate) {
+            Attention.vibrate([
+                new Attention.VibeProfile(100, 400),
+                new Attention.VibeProfile(0, 150),
+                new Attention.VibeProfile(100, 400),
+                new Attention.VibeProfile(0, 150),
+                new Attention.VibeProfile(100, 400)
+            ]);
+        }
+    }
+
+    // --- Torwartwechsel: roter Balken über der aktuellen Seite ---
+    private function drawGkAlertBanner(dc as Dc, cx as Number, cy as Number) as Void {
+        var bannerH = dc.getFontHeight(Graphics.FONT_SMALL) + 10;
+        dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_RED);
+        dc.fillRectangle(0, cy - bannerH / 2, dc.getWidth(), bannerH);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, cy, Graphics.FONT_SMALL, _gkChangeNow, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // --- Torwartwechsel: Zeile unter dem Spielstand ---
+    private function drawGkLine(dc as Dc, cx as Number, height as Number) as Void {
+        if (_model.gkIntervalMin <= 0) { return; }
+        var y = height * 0.84;
+        if (_model.isGkAlertActive()) {
+            dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, y, Graphics.FONT_TINY, _gkChangeNow, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            return;
+        }
+        // Letzte 30 Sekunden orange einfärben als Vorwarnung
+        var color = (_model.isRecording() && _model.gkRemainingSec <= 30) ? Graphics.COLOR_ORANGE : Graphics.COLOR_LT_GRAY;
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        var text = _model.getGkRemainingStr();
+        dc.drawText(cx, y, Graphics.FONT_TINY, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
     //--------------------------------------------
     // --- Hilfs-Funktionen für die Seiten     ---
     //--------------------------------------------
 
     // --- HELPER: Hintergrund-Gitter zeichnen ---
-    private function drawGridBackground(dc as Dc, width as Number, height as Number) {
+    private function drawGridBackground(dc as Dc, width as Number, height as Number) as Void {
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(0, height * 0.32, width, height * 0.32);
         dc.drawLine(0, height * 0.65, width, height * 0.65);
@@ -106,7 +186,7 @@ class SoccerView extends WatchUi.View {
     }
 
     // --- HELPER: Mittleren 2er-Block zeichnen ---
-    private function drawMiddleDualMetrics(dc as Dc, width as Number, height as Number, labelLeft as String, labelRight as String, valLeft as String, valRight as String) {
+    private function drawMiddleDualMetrics(dc as Dc, width as Number, height as Number, labelLeft as String, labelRight as String, valLeft as String, valRight as String) as Void {
         // Labels
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawText(width * 0.25, height * 0.38, Graphics.FONT_XTINY, labelLeft, Graphics.TEXT_JUSTIFY_CENTER);
@@ -119,16 +199,39 @@ class SoccerView extends WatchUi.View {
     }
 
     // --- HELPER: Timer unten zeichnen ---
-    private function drawBottomTimer(dc as Dc, cx as Number, height as Number) {
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, _timerLabel, Graphics.TEXT_JUSTIFY_CENTER);
+    private function drawBottomTimer(dc as Dc, cx as Number, height as Number) as Void {
+        // Vor dem Anpfiff (Outdoor): statt "TIMER" den GPS-Status anzeigen
+        if (!_model.isIndoor && !_model.isRecording() && !_model.isPaused()) {
+            drawGpsStatus(dc, cx, height);
+        } else {
+            dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, _timerLabel, Graphics.TEXT_JUSTIFY_CENTER);
+        }
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, height * 0.83, Graphics.FONT_LARGE, _model.activityTimeStr, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
+    // --- HELPER: GPS-Status vor dem Start ---
+    // Rot = kein Signal, Orange = schwach, Gelb = brauchbar, Grün = gut ("GPS OK")
+    private function drawGpsStatus(dc as Dc, cx as Number, height as Number) as Void {
+        var quality = _model.gpsQuality;
+        var color = Graphics.COLOR_RED;
+        var text = "GPS";
+        if (quality >= Position.QUALITY_GOOD) {
+            color = Graphics.COLOR_GREEN;
+            text = "GPS OK";
+        } else if (quality == Position.QUALITY_USABLE) {
+            color = Graphics.COLOR_YELLOW;
+        } else if (quality == Position.QUALITY_POOR) {
+            color = Graphics.COLOR_ORANGE;
+        }
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, height * 0.71, Graphics.FONT_XTINY, text, Graphics.TEXT_JUSTIFY_CENTER);
+    }
+
     // Hilfsfunktion: Zeichnet ein Herz aus Primitiven (sehr RAM-schonend)
-    private function drawHeart(dc, x, y) {
+    private function drawHeart(dc as Dc, x as Number, y as Number) as Void {
         dc.fillCircle(x - 5, y - 4, 5); // Linker Bogen
         dc.fillCircle(x + 5, y - 4, 5); // Rechter Bogen
         // Das untere Dreieck des Herzens
@@ -141,7 +244,7 @@ class SoccerView extends WatchUi.View {
     //--------------------------------------------
 
     // --- SEITE: SCOREBOARD (Mit Button-Hints) ---
-   private function drawScoreboardPage(dc as Dc, cx as Number, cy as Number) {
+    private function drawScoreboardPage(dc as Dc, cx as Number, cy as Number) as Void {
         var width = dc.getWidth();
         var height = dc.getHeight();
 
@@ -159,6 +262,10 @@ class SoccerView extends WatchUi.View {
         var scoreY = height * 0.55;
         dc.drawText(cx, scoreY, Graphics.FONT_NUMBER_HOT, _model.scoreA.toString() + " : " + _model.scoreB.toString(), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
+        // Torwartwechsel-Countdown unter dem Spielstand
+        drawGkLine(dc, cx, height);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+
         // 4. Button-Hints (Nur anzeigen, wenn das Spiel läuft)
         if (_model.isRecording()) {
             // Rechter Rand für die Hints: 85% der Bildschirmbreite 
@@ -174,14 +281,14 @@ class SoccerView extends WatchUi.View {
     }
 
     // --- SEITE 0: METRIKEN (Puls, Distanz, HIT) ---
-    private function drawMetricsPage(dc, cx, cy) {
+    private function drawMetricsPage(dc as Dc, cx as Number, cy as Number) as Void {
         var width = dc.getWidth();
         var height = dc.getHeight();
 
         drawGridBackground(dc, width, height);
 
         // BEREICH 1: HERZFREQUENZ (Individuell)
-        var hrY = height * 0.16;
+        var hrY = (height * 0.16).toNumber();
         dc.setColor(_model.getHrColor(), Graphics.COLOR_TRANSPARENT);
         drawHeart(dc, cx - 35, hrY); // Herz-Icon
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
@@ -193,7 +300,7 @@ class SoccerView extends WatchUi.View {
     }
 
     // --- SEITE 1: PERFORMANCE METRIKEN (Speed, Kalorien, Sprints) ---
-    private function drawPerformancePage(dc as Dc, cx as Number, cy as Number) {
+    private function drawPerformancePage(dc as Dc, cx as Number, cy as Number) as Void {
         var width = dc.getWidth();
         var height = dc.getHeight();
 
@@ -212,7 +319,7 @@ class SoccerView extends WatchUi.View {
 
 
     // --- SEITE: UHRZEIT ---
-    private function drawClockPage(dc as Dc, cx as Number, cy as Number) {
+    private function drawClockPage(dc as Dc, cx as Number, cy as Number) as Void {
         var clockTime = System.getClockTime();
         var timeStr = clockTime.hour.format("%02d") + ":" + clockTime.min.format("%02d");
         
@@ -221,7 +328,7 @@ class SoccerView extends WatchUi.View {
     }
 
     // --- HELPER: PUNKTE FÜR DAS KARUSSELL ---
-    private function drawPageIndicator(dc as Dc, cx as Number, y as Number) {
+    private function drawPageIndicator(dc as Dc, cx as Number, y as Number) as Void {
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
         var spacing = 15;
         var startX = cx - ((_model.maxPages - 1) * spacing) / 2;

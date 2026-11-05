@@ -35,6 +35,13 @@
         <string id="AwayScoreLabel">Goles Equipo B</string>
         <string id="HomeScoreTitle">Goles Equipo A a lo largo del tiempo</string>
         <string id="AwayScoreTitle">Goles Equipo B a lo largo del tiempo</string>
-
+        <string id="GkIntervalTitle">Cambio portero</string>
+        <string id="GkOff">Desactivado</string>
+        <string id="GkMinUnit">min</string>
+        <string id="ViewGkChangeNow">¡CAMBIO PORTERO!</string>
+        <string id="RecoverPrompt">¿Continuar partido anterior?</string>
+        <string id="SummaryGk">Cambios portero</string>
+        <string id="GkIntervalSetting">Cambio de portero (min, 0 = desactivado)</string>
+        <string id="GkChangesLabel">Cambios de portero</string>
     </strings>
 </resources>

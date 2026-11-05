@@ -1,0 +1,11 @@
+<!-- Einstellungen, die in der Connect IQ App auf dem Handy geändert werden können -->
+<resources>
+    <settings>
+        <setting propertyKey="@Properties.is_indoor" title="@Strings.IndoorMode">
+            <settingConfig type="boolean" />
+        </setting>
+        <setting propertyKey="@Properties.gk_interval" title="@Strings.GkIntervalSetting">
+            <settingConfig type="numeric" min="0" max="60" required="true" />
+        </setting>
+    </settings>
+</resources>

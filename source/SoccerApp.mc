@@ -31,6 +31,17 @@ class SoccerApp extends Application.AppBase {
     }
 
     public function onStart(state as Dictionary?) as Void {
+        // GPS schon vor dem Anpfiff suchen lassen (nur Outdoor)
+        _model.updateGpsMode();
+    }
+
+    // Einstellungen wurden in der Connect IQ App auf dem Handy geändert
+    public function onSettingsChanged() as Void {
+        _model.loadSettings();
+        if (!_model.isRecording() && !_model.isPaused()) {
+            _model.updateGpsMode();
+        }
+        WatchUi.requestUpdate();
     }
 
     public function getInitialView() as [Views] or [Views, InputDelegates] {
@@ -39,5 +50,8 @@ class SoccerApp extends Application.AppBase {
     }
 
     public function onStop(state as Dictionary?) as Void {
+        // App wird beendet, während noch aufgezeichnet wird (Akku, Systemabbruch, ...):
+        // Aktivität speichern statt verlieren. Der Spielstand bleibt für die Wiederherstellung erhalten.
+        _model.emergencySave();
     }
 }

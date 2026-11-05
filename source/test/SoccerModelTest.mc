@@ -1,6 +1,7 @@
 import Toybox.System;
 import Toybox.Lang;
 import Toybox.Graphics;
+import Toybox.Test;
 
 (:test)
 class SoccerModelTest {
@@ -9,7 +10,7 @@ class SoccerModelTest {
     // TEST 1: Tor-Logik und Boundaries (Keine negativen Tore)
     // --------------------------------------------------------
     (:test)
-    static function testGoalScoringLogic(logger ) as Boolean {
+    static function testGoalScoringLogic(logger as Logger) as Boolean {
         var model = new $.SoccerModel();
         
         // Arrange & Act
@@ -38,7 +39,7 @@ class SoccerModelTest {
     // TEST 2: Herzfrequenz-Farbgebung
     // --------------------------------------------------------
     (:test)
-    static function testHeartRateColors(logger ) as Boolean {
+    static function testHeartRateColors(logger as Logger) as Boolean {
         var model = new $.SoccerModel();
         // Zonen: [90, 110, 130, 150, 170, 190]
         
@@ -64,7 +65,7 @@ class SoccerModelTest {
     // TEST 3: Sprint-Erkennung mit gleitendem Durchschnitt (Moving Average)
     // --------------------------------------------------------
     (:test)
-    static function testSprintDetectionMovingAverage(logger) as Boolean {
+    static function testSprintDetectionMovingAverage(logger as Logger) as Boolean {
         var model = new $.SoccerModel();
         
         // --- EDGE CASE 1: Antritt aus dem Stand (Akute Beschleunigung) ---
@@ -111,7 +112,7 @@ class SoccerModelTest {
     }
 
     (:test)
-    static function testSprintCancelAndHysteresis(logger) as Boolean {
+    static function testSprintCancelAndHysteresis(logger as Logger) as Boolean {
         var model = new $.SoccerModel();
 
         // --- EDGE CASE 4: Die unfaire Hysterese (Sanftes Auslaufen) ---
@@ -160,7 +161,7 @@ class SoccerModelTest {
     // TEST 4: High-Intensity Minuten Aggregation
     // --------------------------------------------------------
     (:test)
-    static function testHighIntensityMinutes(logger) as Boolean {
+    static function testHighIntensityMinutes(logger as Logger) as Boolean {
         var model = new $.SoccerModel();
         // Zonen: [90, 110, 130, 150, 170, 190] -> Zone 4 beginnt bei Index 3 (150)
         
@@ -210,7 +211,7 @@ class SoccerModelTest {
     // TEST 5: Sprint beginnt exakt auf Threshold
     // --------------------------------------------------------
     (:test)
-    static function testSprintThresholdBoundary(logger) as Boolean {
+    static function testSprintThresholdBoundary(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -242,7 +243,7 @@ class SoccerModelTest {
     // TEST 6: Sprint wird durch kurzen Peak NICHT ausgelöst
     // --------------------------------------------------------
     (:test)
-    static function testShortSpeedSpikeDoesNotTriggerSprint(logger) as Boolean {
+    static function testShortSpeedSpikeDoesNotTriggerSprint(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -265,7 +266,7 @@ class SoccerModelTest {
     // TEST 7: Mehrere Sprints korrekt getrennt zählen
     // --------------------------------------------------------
     (:test)
-    static function testMultipleIndependentSprints(logger) as Boolean {
+    static function testMultipleIndependentSprints(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -297,7 +298,7 @@ class SoccerModelTest {
     // TEST 8: High Intensity Minuten dürfen nicht negativ werden
     // --------------------------------------------------------
     (:test)
-    static function testHiMinutesNeverNegative(logger) as Boolean {
+    static function testHiMinutesNeverNegative(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -320,7 +321,7 @@ class SoccerModelTest {
     // TEST 9: Sehr hohe Herzfrequenzwerte
     // --------------------------------------------------------
     (:test)
-    static function testExtremeHeartRateValues(logger) as Boolean {
+    static function testExtremeHeartRateValues(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -338,7 +339,7 @@ class SoccerModelTest {
     // TEST 10: Negative Herzfrequenzwerte
     // --------------------------------------------------------
     (:test)
-    static function testNegativeHeartRate(logger) as Boolean {
+    static function testNegativeHeartRate(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -357,7 +358,7 @@ class SoccerModelTest {
     // TEST 11: Score darf niemals negativ werden
     // --------------------------------------------------------
     (:test)
-    static function testScoreNeverNegative(logger) as Boolean {
+    static function testScoreNeverNegative(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -378,7 +379,7 @@ class SoccerModelTest {
     // TEST 12: Sehr hohe Scores
     // --------------------------------------------------------
     (:test)
-    static function testVeryHighScores(logger) as Boolean {
+    static function testVeryHighScores(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -398,7 +399,7 @@ class SoccerModelTest {
     // TEST 13: Moving Average stabilisiert sich korrekt
     // --------------------------------------------------------
     (:test)
-    static function testMovingAverageStability(logger) as Boolean {
+    static function testMovingAverageStability(logger as Logger) as Boolean {
 
         var model = new $.SoccerModel();
 
@@ -416,5 +417,83 @@ class SoccerModelTest {
         return true;
     }
 
+    // --------------------------------------------------------
+    // TEST: Torwartwechsel-Countdown
+    // --------------------------------------------------------
+    (:test)
+    static function testGoalkeeperChangeCountdown(logger as Logger) as Boolean {
+        var model = new $.SoccerModel();
+        model.gkIntervalMin = 5;
 
+        // 4:00 gespielt -> noch 60 Sekunden, kein Wechsel
+        if (model.processGoalkeeperChange(240000)) {
+            logger.error("Wechsel zu früh ausgelöst."); return false;
+        }
+        if (model.gkRemainingSec != 60 || model.gkChangeCount != 0) {
+            logger.error("Restzeit sollte 60 s sein, ist " + model.gkRemainingSec); return false;
+        }
+
+        // 5:00 -> erster Wechsel fällig
+        if (!model.processGoalkeeperChange(300000) || model.gkChangeCount != 1 || !model.gkAlertPending) {
+            logger.error("Erster Wechsel bei 5:00 nicht ausgelöst."); return false;
+        }
+        if (model.gkRemainingSec != 300 || !model.isGkAlertActive()) {
+            logger.error("Countdown nach Wechsel nicht neu gestartet."); return false;
+        }
+
+        // 5:11 -> Hinweis (10 s) wieder aus, kein neuer Wechsel
+        if (model.processGoalkeeperChange(311000) || model.isGkAlertActive()) {
+            logger.error("Hinweis sollte nach 10 s verschwinden."); return false;
+        }
+
+        // 10:00 -> zweiter Wechsel, ohne Drift
+        if (!model.processGoalkeeperChange(600000) || model.gkChangeCount != 2) {
+            logger.error("Zweiter Wechsel bei 10:00 nicht ausgelöst."); return false;
+        }
+        if (!model.getGkRemainingStr().equals("5:00")) {
+            logger.error("Formatierung falsch: " + model.getGkRemainingStr()); return false;
+        }
+        return true;
+    }
+
+    (:test)
+    static function testGoalkeeperChangeDisabled(logger as Logger) as Boolean {
+        var model = new $.SoccerModel();
+        model.gkIntervalMin = 0;
+        if (model.processGoalkeeperChange(3600000) || model.gkChangeCount != 0 || model.isGkAlertActive()) {
+            logger.error("Bei deaktiviertem Wechsel darf nichts passieren."); return false;
+        }
+        return true;
+    }
+
+    (:test)
+    static function testGoalkeeperManualConfirm(logger as Logger) as Boolean {
+        var model = new $.SoccerModel();
+        model.gkIntervalMin = 5;
+
+        // Manueller Wechsel bei 3:20 -> Zähler +1, Countdown startet ab 3:20 neu
+        model.processGoalkeeperChange(200000);
+        model.confirmGoalkeeperChange(200000);
+        if (model.gkChangeCount != 1 || model.gkRemainingSec != 300) {
+            logger.error("Manueller Wechsel falsch: count=" + model.gkChangeCount + " rest=" + model.gkRemainingSec); return false;
+        }
+        // Nächster automatischer Wechsel erst bei 8:20, nicht bei 5:00
+        if (model.processGoalkeeperChange(300000)) {
+            logger.error("Automatischer Wechsel ignoriert manuellen Neustart."); return false;
+        }
+        if (!model.processGoalkeeperChange(500000) || model.gkChangeCount != 2) {
+            logger.error("Automatischer Wechsel bei 8:20 fehlt."); return false;
+        }
+
+        // Bestätigung während der Hinweis läuft -> nicht doppelt zählen, Countdown neu ab Bestätigung
+        model.processGoalkeeperChange(504000);
+        model.confirmGoalkeeperChange(504000);
+        if (model.gkChangeCount != 2 || model.isGkAlertActive()) {
+            logger.error("Bestätigung während Hinweis doppelt gezählt."); return false;
+        }
+        if (model.processGoalkeeperChange(800000) || model.gkRemainingSec != 4) {
+            logger.error("Countdown nach Bestätigung falsch: " + model.gkRemainingSec); return false;
+        }
+        return true;
+    }
 }
